@@ -811,7 +811,7 @@ async def _check_alerts(conn: asyncpg.Connection) -> list[dict]:
         except Exception as exc:
             logger.warning("Congestion alert for zone %s failed: %s", zone, exc)
 
-    # ── Alert 3: Delayed task (in-progress 20+ ticks) ────────────────────────
+    # ── Alert 3: Slow task (in-progress 20+ ticks, still running) ───────────
     for tid, state in list(_task_state.items()):
         if _tick_count - state.get('start_tick', _tick_count) < 20:
             continue
@@ -823,13 +823,13 @@ async def _check_alerts(conn: asyncpg.Connection) -> list[dict]:
                 continue
             exists = await conn.fetchval(
                 "SELECT 1 FROM alerts WHERE message LIKE $1 AND resolved=FALSE LIMIT 1",
-                f"delayed_task: task {tid}%",
+                f"slow_task: task {tid}%",
             )
             if exists:
                 continue
             ticks    = _tick_count - state['start_tick']
             msg_text = (
-                f"delayed_task: task {tid} (type: {task_row['type']}) "
+                f"slow_task: task {tid} (type: {task_row['type']}) "
                 f"in progress for {ticks} ticks without completing"
             )
             await conn.execute(
@@ -839,7 +839,7 @@ async def _check_alerts(conn: asyncpg.Connection) -> list[dict]:
             )
             await conn.execute(
                 "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
-                'alert_triggered', {'task_id': tid, 'reason': 'delayed_task', 'ticks': ticks},
+                'alert_triggered', {'task_id': tid, 'reason': 'slow_task', 'ticks': ticks},
             )
             msgs.append({'type': 'alert', 'payload': {'severity': 'warning', 'message': msg_text}})
         except Exception as exc:
