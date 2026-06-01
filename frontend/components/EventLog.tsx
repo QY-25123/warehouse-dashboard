@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Event, WsMessage } from '@/lib/types';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -81,20 +81,31 @@ function summarize(type: string, payload: Record<string, unknown>): string {
 export function EventLog({ initialEvents }: Props) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const synthId = useRef(0);
 
   const onMessage = useCallback((msg: WsMessage) => {
-    synthId.current -= 1;
-    const synthetic: Event = {
-      id: synthId.current,
-      type: msg.type,
-      payload: msg.payload as unknown as Record<string, unknown>,
-      timestamp: new Date().toISOString(),
-    };
-    setEvents((prev) => [synthetic, ...prev].slice(0, 100));
+    if (msg.type === 'tick_update' && msg.new_events.length > 0) {
+      setEvents((prev) => [...msg.new_events, ...prev].slice(0, 100));
+    }
   }, []);
 
   const { connected } = useWebSocket({ onMessage });
+
+  // Fallback: if SSR returned no events (backend was offline), re-fetch from the
+  // browser after 3 s so the page isn't blank when the WS hasn't pushed yet.
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (events.length === 0) {
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/events?limit=100`,
+          );
+          if (res.ok) setEvents(await res.json());
+        } catch { /* ignore */ }
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Derive unique event types for the filter dropdown
   const eventTypes = Array.from(new Set(events.map((e) => e.type))).sort();

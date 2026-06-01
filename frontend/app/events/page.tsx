@@ -12,9 +12,12 @@ const API_INTERNAL = process.env.API_INTERNAL_URL ?? 'http://backend:8000';
 export default async function EventsPage() {
   let initialEvents: Event[] = [];
   try {
-    initialEvents = await fetch(`${API_INTERNAL}/events?limit=100`).then((r) => r.json()) as Event[];
-  } catch {
-    // backend offline at render time
+    const res = await fetch(`${API_INTERNAL}/events?limit=100`, { cache: 'no-store' });
+    if (res.ok) {
+      initialEvents = (await res.json()) as Event[];
+    }
+  } catch (e) {
+    console.error('Failed to fetch initial events:', e);
   }
 
   return (

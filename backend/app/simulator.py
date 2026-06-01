@@ -36,6 +36,7 @@ import asyncio
 import logging
 import math
 import random
+from datetime import datetime, timezone
 from typing import Any
 
 import asyncpg
@@ -111,6 +112,7 @@ async def run(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
 
 async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
     msgs: list[dict[str, Any]] = []
+    tick_start = datetime.now(timezone.utc)
     async with pool.acquire() as conn:
         if _tick_count % 10 == 0:
             msgs += await _create_tasks(conn)
@@ -120,8 +122,26 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
         if _tick_count % 30 == 0:
             msgs += await _inject_sensor_fault(conn)
         msgs += await _check_alerts(conn)
+        new_event_rows = await conn.fetch(
+            "SELECT id, type, payload, timestamp FROM events "
+            "WHERE timestamp >= $1 ORDER BY timestamp ASC",
+            tick_start,
+        )
     for msg in msgs:
         await manager.broadcast(msg)
+    if new_event_rows:
+        await manager.broadcast({
+            'type': 'tick_update',
+            'new_events': [
+                {
+                    'id': r['id'],
+                    'type': r['type'],
+                    'payload': dict(r['payload']),
+                    'timestamp': r['timestamp'].isoformat(),
+                }
+                for r in new_event_rows
+            ],
+        })
 
 
 # ── Step 1: Task creation (every 10 ticks) ────────────────────────────────────

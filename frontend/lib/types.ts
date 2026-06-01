@@ -119,4 +119,5 @@ export type WsMessage =
   | { type: 'task_update';       payload: WsTaskPayload }
   | { type: 'task_created';      payload: WsTaskCreatedPayload }
   | { type: 'inventory_update';  payload: WsInventoryPayload }
-  | { type: 'alert';             payload: WsAlertPayload };
+  | { type: 'alert';             payload: WsAlertPayload }
+  | { type: 'tick_update';       new_events: Event[] };
