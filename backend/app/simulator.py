@@ -157,10 +157,13 @@ async def _create_tasks(conn: asyncpg.Connection) -> list[dict]:
             row = await conn.fetchrow(
                 "INSERT INTO tasks (type, status, origin_zone, destination_zone, "
                 "                   inventory_item_id, created_at, updated_at) "
-                "VALUES ($1::task_type, 'pending', $2, $3, $4, NOW(), NOW()) RETURNING id",
+                "VALUES ($1::task_type, 'pending', $2, $3, $4, NOW(), NOW()) "
+                "RETURNING id, created_at, updated_at",
                 t_type, origin, dest, item_id,
             )
-            tid = row['id']
+            tid        = row['id']
+            created_at = row['created_at'].isoformat()
+            updated_at = row['updated_at'].isoformat()
             item_name: str | None = None
             if item_id:
                 ir = await conn.fetchrow("SELECT item_name FROM inventory WHERE id=$1", item_id)
@@ -172,13 +175,18 @@ async def _create_tasks(conn: asyncpg.Connection) -> list[dict]:
                 {'task_id': tid, 'type': t_type, 'origin_zone': origin,
                  'destination_zone': dest, 'item_id': item_id},
             )
+            # Broadcast as 'task_created' (not 'task_update') so the frontend
+            # can prepend the new task rather than trying to map over it.
             msgs.append({
-                'type': 'task_update',
+                'type': 'task_created',
                 'payload': {
                     'id': tid, 'type': t_type,
                     'forklift_id': None, 'status': 'pending',
                     'origin_zone': origin, 'destination_zone': dest,
+                    'inventory_item_id': item_id,
                     'item_name': item_name,
+                    'created_at': created_at,
+                    'updated_at': updated_at,
                 },
             })
         except Exception as exc:

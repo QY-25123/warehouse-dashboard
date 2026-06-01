@@ -13,7 +13,8 @@ INSERT INTO forklifts (name, status, x, y, last_updated) VALUES
     ('FL-007', 'loading',       45.00, 55.00, NOW() - INTERVAL '3 minutes'),
     ('FL-008', 'idle',          67.80, 30.60, NOW() - INTERVAL '10 minutes'),
     ('FL-009', 'moving_empty',  15.40, 73.20, NOW() - INTERVAL '45 seconds'),
-    ('FL-010', 'error',         82.10, 41.90, NOW() - INTERVAL '25 minutes');
+    ('FL-010', 'error',         82.10, 41.90, NOW() - INTERVAL '25 minutes')
+ON CONFLICT (name) DO NOTHING;
 
 -- ─── Inventory (50 items across zones A1–D4) ──────────────────────────────────
 -- Inserted before tasks so inventory IDs are available as FKs.
@@ -83,7 +84,8 @@ INSERT INTO inventory (item_name, quantity, location_zone, last_updated) VALUES
     -- Zone D3  (id 49)
     ('Grease Gun 400ml',             22, 'D3', NOW() - INTERVAL '5 hours'),
     -- Zone D4  (id 50) ← low stock, replenishment target
-    ('Torque Wrench 20-100Nm',        9, 'D4', NOW() - INTERVAL '6 hours');
+    ('Torque Wrench 20-100Nm',        9, 'D4', NOW() - INTERVAL '6 hours')
+ON CONFLICT (item_name) DO NOTHING;
 
 -- ─── Tasks (30: 8 inbound · 8 outbound · 7 relocation · 7 replenishment) ──────
 -- inventory_item_id: the specific item being moved by each task.

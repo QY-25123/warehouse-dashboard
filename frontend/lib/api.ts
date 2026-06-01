@@ -1,4 +1,7 @@
-import type { Forklift, Task, InventoryItem, Alert, Event } from './types';
+import type {
+  Forklift, Task, InventoryItem, InventoryItemTask, InventoryEvent,
+  Alert, Event,
+} from './types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
@@ -50,6 +53,15 @@ export const api = {
   inventory: {
     list: (zone?: string) =>
       get<InventoryItem[]>('/inventory', zone ? { zone } : undefined),
+
+    getById: (id: number) =>
+      get<InventoryItem>(`/inventory/${id}`),
+
+    getTasks: (id: number) =>
+      get<InventoryItemTask[]>(`/inventory/${id}/tasks`),
+
+    getHistory: (id: number) =>
+      get<InventoryEvent[]>(`/inventory/${id}/history`),
   },
 
   alerts: {

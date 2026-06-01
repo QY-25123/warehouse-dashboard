@@ -74,6 +74,23 @@ export function TaskTable({ initialTasks }: Props) {
   }, []);
 
   const onMessage = useCallback((msg: WsMessage) => {
+    if (msg.type === 'task_created') {
+      // New task from simulator — prepend to the list.
+      const newTask: Task = {
+        id:                msg.payload.id,
+        type:              msg.payload.type,
+        forklift_id:       msg.payload.forklift_id,
+        status:            msg.payload.status,
+        origin_zone:       msg.payload.origin_zone,
+        destination_zone:  msg.payload.destination_zone,
+        inventory_item_id: msg.payload.inventory_item_id,
+        item_name:         msg.payload.item_name,
+        created_at:        msg.payload.created_at,
+        updated_at:        msg.payload.updated_at,
+      };
+      setTasks((prev) => [newTask, ...prev]);
+      return;
+    }
     if (msg.type !== 'task_update') return;
     setTasks((prev) =>
       prev.map((t) =>

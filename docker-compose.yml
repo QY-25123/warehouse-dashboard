@@ -53,6 +53,9 @@ services:
         # The browser connects to the backend via the host, not container-to-container.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     restart: unless-stopped
+    environment:
+      # Used by Server Components for container-to-container SSR fetches.
+      API_INTERNAL_URL: http://backend:8000
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

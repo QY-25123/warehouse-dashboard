@@ -34,6 +34,21 @@ class InventoryResponse(BaseModel):
     last_updated: datetime
 
 
+class InventoryTaskResponse(BaseModel):
+    """Task row returned by GET /inventory/:id/tasks — includes forklift name."""
+    id: int
+    type: str
+    forklift_id: Optional[int]
+    forklift_name: Optional[str] = None
+    status: str
+    origin_zone: Optional[str]
+    destination_zone: Optional[str]
+    inventory_item_id: Optional[int] = None
+    item_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class AlertResponse(BaseModel):
     id: int
     severity: str

@@ -1,13 +1,31 @@
 -- Real-Time Warehouse Dashboard Schema
+-- All CREATE TYPE / CREATE TABLE / CREATE INDEX statements are idempotent.
 
--- moving_empty: travelling to pickup location (no cargo aboard)
--- moving_loaded: travelling to dropoff location (carrying cargo)
-CREATE TYPE forklift_status AS ENUM ('idle', 'moving_empty', 'moving_loaded', 'loading', 'error');
-CREATE TYPE task_type       AS ENUM ('inbound', 'outbound', 'relocation', 'replenishment');
-CREATE TYPE task_status     AS ENUM ('pending', 'in-progress', 'completed', 'delayed');
-CREATE TYPE alert_severity  AS ENUM ('info', 'warning', 'critical');
+-- ── ENUMs (wrapped so re-running is a no-op) ──────────────────────────────────
 
-CREATE TABLE forklifts (
+DO $$ BEGIN
+  CREATE TYPE forklift_status AS ENUM ('idle', 'moving_empty', 'moving_loaded', 'loading', 'error');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE task_type AS ENUM ('inbound', 'outbound', 'relocation', 'replenishment');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE task_status AS ENUM ('pending', 'in-progress', 'completed', 'delayed');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE alert_severity AS ENUM ('info', 'warning', 'critical');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ── Tables ────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS forklifts (
     id           SERIAL PRIMARY KEY,
     name         VARCHAR(50)      NOT NULL UNIQUE,
     status       forklift_status  NOT NULL DEFAULT 'idle',
@@ -16,15 +34,16 @@ CREATE TABLE forklifts (
     last_updated TIMESTAMPTZ      NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE inventory (
+-- item_name UNIQUE enables ON CONFLICT DO NOTHING idempotent seeding.
+CREATE TABLE IF NOT EXISTS inventory (
     id             SERIAL PRIMARY KEY,
-    item_name      VARCHAR(100)  NOT NULL,
+    item_name      VARCHAR(100)  NOT NULL UNIQUE,
     quantity       INTEGER       NOT NULL CHECK (quantity >= 0),
     location_zone  VARCHAR(10)   NOT NULL,
     last_updated   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
     id                SERIAL PRIMARY KEY,
     type              task_type    NOT NULL,
     forklift_id       INTEGER      REFERENCES forklifts(id) ON DELETE SET NULL,
@@ -36,14 +55,14 @@ CREATE TABLE tasks (
     updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id        SERIAL PRIMARY KEY,
     type      VARCHAR(50)   NOT NULL,
     payload   JSONB         NOT NULL DEFAULT '{}',
     timestamp TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE alerts (
+CREATE TABLE IF NOT EXISTS alerts (
     id         SERIAL PRIMARY KEY,
     severity   alert_severity NOT NULL,
     message    TEXT           NOT NULL,
@@ -51,11 +70,13 @@ CREATE TABLE alerts (
     created_at TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_tasks_forklift_id      ON tasks(forklift_id);
-CREATE INDEX idx_tasks_status           ON tasks(status);
-CREATE INDEX idx_tasks_inventory_item   ON tasks(inventory_item_id);
-CREATE INDEX idx_inventory_zone         ON inventory(location_zone);
-CREATE INDEX idx_events_timestamp       ON events(timestamp DESC);
-CREATE INDEX idx_events_type            ON events(type);
-CREATE INDEX idx_alerts_resolved        ON alerts(resolved);
-CREATE INDEX idx_alerts_severity        ON alerts(severity);
+-- ── Indexes ───────────────────────────────────────────────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_tasks_forklift_id    ON tasks(forklift_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status         ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_inventory_item ON tasks(inventory_item_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_zone       ON inventory(location_zone);
+CREATE INDEX IF NOT EXISTS idx_events_timestamp     ON events(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_events_type          ON events(type);
+CREATE INDEX IF NOT EXISTS idx_alerts_resolved      ON alerts(resolved);
+CREATE INDEX IF NOT EXISTS idx_alerts_severity      ON alerts(severity);

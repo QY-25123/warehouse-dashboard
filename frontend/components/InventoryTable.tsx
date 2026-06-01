@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import type { InventoryItem, WsMessage } from '@/lib/types';
 import { api } from '@/lib/api';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -17,6 +18,7 @@ function fmtDate(iso: string): string {
 }
 
 export function InventoryTable({ initialItems }: Props) {
+  const router = useRouter();
   const [items, setItems] = useState<InventoryItem[]>(initialItems);
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -119,12 +121,13 @@ export function InventoryTable({ initialItems }: Props) {
               <th className="px-4 py-3">Quantity</th>
               <th className="px-4 py-3">Zone</th>
               <th className="px-4 py-3">Last Updated</th>
+              <th className="px-4 py-3 sr-only">Detail</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
                   No items match the current filter.
                 </td>
               </tr>
@@ -133,7 +136,12 @@ export function InventoryTable({ initialItems }: Props) {
                 const isZero = item.quantity === 0;
                 const isLow  = !isZero && item.quantity <= 10;
                 return (
-                  <tr key={item.id} className="transition-colors hover:bg-gray-50">
+                  <tr
+                    key={item.id}
+                    className="cursor-pointer transition-colors hover:bg-blue-50"
+                    title="View history & tasks"
+                    onClick={() => router.push(`/inventory/${item.id}`)}
+                  >
                     <td className="px-4 py-3 font-medium text-gray-800">
                       {item.item_name}
                     </td>
@@ -159,6 +167,9 @@ export function InventoryTable({ initialItems }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
                       {fmtDate(item.last_updated)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 group-hover:text-gray-500">
+                      →
                     </td>
                   </tr>
                 );
