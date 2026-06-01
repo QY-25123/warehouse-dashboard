@@ -604,6 +604,12 @@ async def _apply_inventory_effect(
 
 async def _recover_sensors(conn: asyncpg.Connection) -> list[dict]:
     msgs: list[dict] = []
+    # Bootstrap: forklifts in error but not tracked (e.g. after a restart) would
+    # never recover on their own. Add them with 1 tick so they recover this pass.
+    orphaned = await conn.fetch("SELECT id FROM forklifts WHERE status='error'")
+    for r in orphaned:
+        if r['id'] not in _sensor_fault_ticks:
+            _sensor_fault_ticks[r['id']] = 1
     for fid in list(_sensor_fault_ticks.keys()):
         _sensor_fault_ticks[fid] -= 1
         if _sensor_fault_ticks[fid] > 0:
