@@ -6,7 +6,7 @@ from app.models import TaskResponse
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
-VALID_STATUSES = {"pending", "in-progress", "completed", "delayed"}
+VALID_STATUSES = {"pending", "in-progress", "completed", "delayed", "out_of_stock"}
 VALID_TYPES    = {"inbound", "outbound", "relocation", "replenishment"}
 
 

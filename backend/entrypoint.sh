@@ -1,8 +1,7 @@
 #!/bin/sh
-# Backend entrypoint: wait for Postgres, apply schema+seed if tables are
-# absent, then exec uvicorn.  Safe to run repeatedly — the CREATE TABLE
-# statements use CREATE TYPE / IF NOT EXISTS semantics and the check below
-# means the seed only runs once.
+# Backend entrypoint: wait for Postgres, apply schema + reference seed,
+# then soft-reset runtime state so the simulator can resume cleanly.
+# Historical tasks, events, and alerts are preserved across restarts.
 set -e
 
 DB_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT:-5432}/${POSTGRES_DB}"
@@ -13,21 +12,29 @@ until pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRE
 done
 echo "[entrypoint] PostgreSQL is ready."
 
-# Check whether the forklifts table already exists.
-TABLE_EXISTS=$(psql "${DB_URL}" -tAc \
-  "SELECT EXISTS (
-     SELECT FROM information_schema.tables
-     WHERE table_schema = 'public' AND table_name = 'forklifts'
-   )" 2>/dev/null || echo "f")
+echo "[entrypoint] Applying schema..."
+psql "${DB_URL}" -f /app/schema.sql
 
-if [ "${TABLE_EXISTS}" = "t" ]; then
-  echo "[entrypoint] Schema already present — skipping init."
-else
-  echo "[entrypoint] Schema not found — applying schema.sql..."
-  psql "${DB_URL}" -f /app/schema.sql
-  echo "[entrypoint] Seeding data..."
-  psql "${DB_URL}" -f /app/seed.sql
-  echo "[entrypoint] Database initialised successfully."
-fi
+echo "[entrypoint] Seeding reference data (skipped if data already exists)..."
+psql "${DB_URL}" -f /app/seed.sql
+
+echo "[entrypoint] Resuming from last state..."
+psql "${DB_URL}" -c "
+  -- Reset any moving/loading/error forklifts to idle so the simulator
+  -- can reassign them. Idle forklifts are left untouched.
+  UPDATE forklifts
+  SET    status = 'idle'::forklift_status,
+         last_updated = NOW()
+  WHERE  status IN ('moving_empty', 'moving_loaded', 'loading', 'error');
+
+  -- Reset stuck in-progress tasks back to pending so the simulator
+  -- picks them up cleanly on the first assignment tick.
+  UPDATE tasks
+  SET    status = 'pending'::task_status,
+         forklift_id = NULL,
+         updated_at = NOW()
+  WHERE  status IN ('in-progress', 'delayed');
+"
+echo "[entrypoint] State restored — historical data preserved. Starting uvicorn."
 
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

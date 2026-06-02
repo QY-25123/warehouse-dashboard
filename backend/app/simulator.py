@@ -166,7 +166,26 @@ async def _create_tasks(conn: asyncpg.Connection) -> list[dict]:
         if t_type == 'inbound':
             origin, dest = cfg['origin'], random.choice(cfg['destinations'])
         elif t_type == 'outbound':
-            origin, dest = random.choice(cfg['origins']), cfg['destination']
+            # Try up to 3 random zones; skip if none have stock.
+            candidates = random.sample(list(cfg['origins']), min(3, len(cfg['origins'])))
+            origin = None
+            for candidate in candidates:
+                has_stock = await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM inventory "
+                    "WHERE location_zone=$1 AND quantity>0)",
+                    candidate,
+                )
+                if has_stock:
+                    origin = candidate
+                    break
+            if origin is None:
+                await conn.execute(
+                    "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
+                    'outbound_skipped',
+                    {'reason': 'no_stock', 'zones_checked': candidates},
+                )
+                continue
+            dest = cfg['destination']
         elif t_type == 'relocation':
             zones  = cfg['zones']
             origin = random.choice(zones)
@@ -176,6 +195,11 @@ async def _create_tasks(conn: asyncpg.Connection) -> list[dict]:
 
         # Select the specific inventory item this task will move.
         item_id = await _select_inventory_item(conn, t_type, origin, dest)
+
+        # Skip task creation if no item could be associated — avoids tasks
+        # with a null item name that produce no inventory effect anyway.
+        if item_id is None:
+            continue
 
         try:
             row = await conn.fetchrow(
@@ -271,6 +295,45 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
     for task, fork in zip(pending, idle):
         tid, fid = task['id'], fork['id']
         t_type = task['type']
+
+        # Outbound: verify the item still has stock before assigning a forklift.
+        # Between creation and assignment, an outbound task from another task may
+        # have depleted the item to zero.
+        if t_type == 'outbound' and task['inventory_item_id'] is not None:
+            qty = await conn.fetchval(
+                "SELECT quantity FROM inventory WHERE id=$1", task['inventory_item_id'],
+            )
+            if qty is not None and qty == 0:
+                try:
+                    item_row = await conn.fetchrow(
+                        "SELECT item_name FROM inventory WHERE id=$1",
+                        task['inventory_item_id'],
+                    )
+                    await conn.execute(
+                        "UPDATE tasks SET status='out_of_stock'::task_status, "
+                        "updated_at=NOW() WHERE id=$1",
+                        tid,
+                    )
+                    await conn.execute(
+                        "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
+                        'task_out_of_stock',
+                        {
+                            'task_id': tid,
+                            'item_id': task['inventory_item_id'],
+                            'item_name': item_row['item_name'] if item_row else None,
+                            'zone': task['origin_zone'],
+                        },
+                    )
+                    msgs.append({'type': 'task_update', 'payload': {
+                        'id': tid, 'type': t_type, 'forklift_id': None,
+                        'status': 'out_of_stock',
+                        'origin_zone': task['origin_zone'],
+                        'destination_zone': task['destination_zone'],
+                    }})
+                except Exception as exc:
+                    logger.warning("Out-of-stock update for task %d failed: %s", tid, exc)
+                continue  # forklift stays idle; reassigned next tick
+
         tx, ty = _leg1_target(t_type, task['origin_zone'])
         try:
             await conn.execute(

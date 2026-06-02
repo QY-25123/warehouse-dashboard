@@ -12,17 +12,27 @@ interface Props {
 // ── Visual constants ──────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<Task['status'], string> = {
-  'pending':     'bg-yellow-50 text-yellow-800 border-yellow-200',
-  'in-progress': 'bg-blue-50 text-blue-800 border-blue-200',
-  'completed':   'bg-green-50 text-green-800 border-green-200',
-  'delayed':     'bg-red-50 text-red-800 border-red-200',
+  'pending':      'bg-yellow-50 text-yellow-800 border-yellow-200',
+  'in-progress':  'bg-blue-50 text-blue-800 border-blue-200',
+  'completed':    'bg-green-50 text-green-800 border-green-200',
+  'delayed':      'bg-red-50 text-red-800 border-red-200',
+  'out_of_stock': 'bg-amber-50 text-amber-800 border-amber-300',
 };
 
 const STATUS_DOT: Record<Task['status'], string> = {
-  'pending':     'bg-yellow-400',
-  'in-progress': 'bg-blue-500',
-  'completed':   'bg-green-500',
-  'delayed':     'bg-red-500',
+  'pending':      'bg-yellow-400',
+  'in-progress':  'bg-blue-500',
+  'completed':    'bg-green-500',
+  'delayed':      'bg-red-500',
+  'out_of_stock': 'bg-amber-400',
+};
+
+const STATUS_LABEL: Record<Task['status'], string> = {
+  'pending':      'Pending',
+  'in-progress':  'In Progress',
+  'completed':    'Completed',
+  'delayed':      'Delayed',
+  'out_of_stock': 'Out of Stock',
 };
 
 const TYPE_LABEL: Record<Task['type'], string> = {
@@ -39,7 +49,7 @@ const TYPE_BADGE: Record<Task['type'], string> = {
   replenishment: 'bg-teal-50 text-teal-700 border-teal-200',
 };
 
-const STATUSES = ['pending', 'in-progress', 'completed', 'delayed'] as const;
+const STATUSES = ['pending', 'in-progress', 'completed', 'delayed', 'out_of_stock'] as const;
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleString('en-US', {
@@ -106,7 +116,7 @@ export function TaskTable({ initialTasks }: Props) {
   // Status summary counts (always over full list, not filtered)
   const counts = STATUSES.reduce(
     (acc, s) => ({ ...acc, [s]: tasks.filter((t) => t.status === s).length }),
-    {} as Record<Task['status'], number>
+    {} as Record<(typeof STATUSES)[number], number>
   );
 
   const visible = filter === 'all' ? tasks : tasks.filter((t) => t.status === filter);
@@ -142,14 +152,14 @@ export function TaskTable({ initialTasks }: Props) {
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium capitalize transition-colors ${
+            className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
               filter === s
                 ? `${STATUS_BADGE[s]} border-current`
                 : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${STATUS_DOT[s]}`} />
-            {s}
+            {STATUS_LABEL[s]}
             <span className="tabular-nums">{counts[s]}</span>
           </button>
         ))}
@@ -197,9 +207,17 @@ export function TaskTable({ initialTasks }: Props) {
                       {TYPE_LABEL[task.type]}
                     </span>
                   </td>
-                  <td className="max-w-[140px] truncate px-4 py-3 text-xs text-gray-700"
-                      title={task.item_name ?? undefined}>
-                    {task.item_name ?? '—'}
+                  <td className="max-w-[140px] truncate px-4 py-3 text-xs"
+                      title={task.status === 'out_of_stock'
+                        ? `${task.item_name ?? 'Item'} has 0 quantity in zone ${task.origin_zone ?? '?'}`
+                        : (task.item_name ?? undefined)}>
+                    {task.status === 'out_of_stock' ? (
+                      <span className="text-amber-600 line-through">
+                        {task.item_name ?? '—'}
+                      </span>
+                    ) : (
+                      <span className="text-gray-700">{task.item_name ?? '—'}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">
                     {zoneLabel(task.origin_zone)}
@@ -212,12 +230,13 @@ export function TaskTable({ initialTasks }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[task.status]}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[task.status]}`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[task.status]}`}
                       />
-                      {task.status}
+                      {task.status === 'out_of_stock' && <span>⚠️</span>}
+                      {STATUS_LABEL[task.status]}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">

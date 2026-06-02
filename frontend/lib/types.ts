@@ -13,7 +13,7 @@ export interface Task {
   id: number;
   type: 'inbound' | 'outbound' | 'relocation' | 'replenishment';
   forklift_id: number | null;
-  status: 'pending' | 'in-progress' | 'completed' | 'delayed';
+  status: 'pending' | 'in-progress' | 'completed' | 'delayed' | 'out_of_stock';
   origin_zone: string | null;
   destination_zone: string | null;
   inventory_item_id: number | null;
