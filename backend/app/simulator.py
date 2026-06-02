@@ -75,6 +75,10 @@ _idle_ticks: dict[int, int] = {}
 # forklift_id → last known zone label (for zone-entry event deduplication)
 _forklift_zones: dict[int, str] = {}
 
+# forklift_id → task_id that was interrupted by a sensor fault.
+# Preserved so _recover_sensors can resume the task from the same leg/phase.
+_forklift_interrupted_task: dict[int, int] = {}
+
 
 def _xy_to_zone(x: float, y: float) -> str:
     """Map coordinates to a zone label. x<0 → DOCK, x>100 → SHIP, y>100 → STOR."""
@@ -620,21 +624,75 @@ async def _recover_sensors(conn: asyncpg.Connection) -> list[dict]:
             )
             if not row:
                 _sensor_fault_ticks.pop(fid, None)
+                _forklift_interrupted_task.pop(fid, None)
                 continue
-            await conn.execute(
-                "UPDATE forklifts SET status='idle'::forklift_status, last_updated=NOW() WHERE id=$1",
-                fid,
-            )
-            await conn.execute(
-                "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
-                'forklift_status_change',
-                {'forklift_id': fid, 'from': 'error', 'to': 'idle'},
-            )
-            msgs.append({'type': 'forklift_update', 'payload': {
-                'id': fid, 'name': row['name'],
-                'status': 'idle', 'x': float(row['x']), 'y': float(row['y']),
-            }})
-            logger.info("Forklift %d sensor recovered → idle", fid)
+
+            tid   = _forklift_interrupted_task.pop(fid, None)
+            state = _task_state.get(tid) if tid is not None else None
+
+            if tid is not None and state is not None:
+                # Resume the interrupted task from the exact leg/phase it was on.
+                leg   = state.get('leg', 1)
+                phase = state.get('phase', 'moving')
+                if phase == 'loading':
+                    resume_status = 'loading'
+                elif leg == 2:
+                    resume_status = 'moving_loaded'
+                else:
+                    resume_status = 'moving_empty'
+
+                await conn.execute(
+                    "UPDATE forklifts SET status=$1::forklift_status, last_updated=NOW() WHERE id=$2",
+                    resume_status, fid,
+                )
+                await conn.execute(
+                    "UPDATE tasks SET status='in-progress'::task_status, updated_at=NOW() WHERE id=$1",
+                    tid,
+                )
+                await conn.execute(
+                    "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
+                    'task_resumed',
+                    {'task_id': tid, 'forklift_id': fid,
+                     'resumed_from': 'error', 'leg': leg, 'phase': phase},
+                )
+                await conn.execute(
+                    "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
+                    'forklift_status_change',
+                    {'forklift_id': fid, 'from': 'error', 'to': resume_status},
+                )
+                msgs.append({'type': 'forklift_update', 'payload': {
+                    'id': fid, 'name': row['name'],
+                    'status': resume_status, 'x': float(row['x']), 'y': float(row['y']),
+                }})
+                msgs.append({'type': 'task_update', 'payload': {
+                    'id': tid, 'status': 'in-progress', 'forklift_id': fid,
+                }})
+                logger.info("Forklift %d recovered → %s, task %d resumed (leg %d, %s)",
+                            fid, resume_status, tid, leg, phase)
+            else:
+                # No interrupted task tracked (e.g. after a restart). Recover to idle
+                # and re-queue any stuck delayed task so it can be reassigned.
+                if tid is not None:
+                    await conn.execute(
+                        "UPDATE tasks "
+                        "SET status='pending'::task_status, forklift_id=NULL, updated_at=NOW() "
+                        "WHERE id=$1 AND status='delayed'",
+                        tid,
+                    )
+                await conn.execute(
+                    "UPDATE forklifts SET status='idle'::forklift_status, last_updated=NOW() WHERE id=$1",
+                    fid,
+                )
+                await conn.execute(
+                    "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
+                    'forklift_status_change',
+                    {'forklift_id': fid, 'from': 'error', 'to': 'idle'},
+                )
+                msgs.append({'type': 'forklift_update', 'payload': {
+                    'id': fid, 'name': row['name'],
+                    'status': 'idle', 'x': float(row['x']), 'y': float(row['y']),
+                }})
+                logger.info("Forklift %d sensor recovered → idle (no state to resume)", fid)
         except Exception as exc:
             logger.warning("Sensor recovery for forklift %d failed: %s", fid, exc)
         finally:
@@ -677,18 +735,26 @@ async def _inject_sensor_fault(conn: asyncpg.Connection) -> list[dict]:
         _sensor_fault_ticks[fid] = 5
 
         if task_row:
-            _task_state.pop(task_row['id'], None)
+            tid = task_row['id']
+            # Preserve _task_state so recovery can resume from the same leg/phase/target.
+            # Only record the mapping; do NOT pop from _task_state.
+            _forklift_interrupted_task[fid] = tid
             await conn.execute(
                 "UPDATE tasks SET status='delayed'::task_status, updated_at=NOW() WHERE id=$1",
-                task_row['id'],
+                tid,
             )
+            state = _task_state.get(tid, {})
             await conn.execute(
                 "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
-                'task_delayed',
-                {'task_id': task_row['id'], 'type': task_row['type'], 'reason': 'timeout'},
+                'task_interrupted',
+                {
+                    'task_id': tid, 'forklift_id': fid,
+                    'reason': 'forklift_error',
+                    'leg': state.get('leg'), 'phase': state.get('phase'),
+                },
             )
             msgs.append({'type': 'task_update', 'payload': {
-                'id': task_row['id'], 'type': task_row['type'],
+                'id': tid, 'type': task_row['type'],
                 'forklift_id': fid, 'status': 'delayed',
                 'origin_zone': task_row['origin_zone'],
                 'destination_zone': task_row['destination_zone'],

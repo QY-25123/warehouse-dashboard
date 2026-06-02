@@ -4,7 +4,7 @@ import type { Forklift } from '@/lib/types';
 import { ForkliftTabs } from '@/components/ForkliftTabs';
 
 export const metadata: Metadata = {
-  title: 'Forklift Tracking | Warehouse Dashboard',
+  title: 'Operations Center | Warehouse Dashboard',
 };
 
 export default async function ForkliftsPage() {
@@ -16,13 +16,10 @@ export default async function ForkliftsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Forklift Tracking</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Real-time positions and statuses · Traffic heatmap by zone.
-        </p>
-      </div>
+    <div
+      className="min-h-screen"
+      style={{ background: '#0F1117', borderTop: '3px solid #3B82F6' }}
+    >
       <ForkliftTabs initialForklifts={initialForklifts} />
     </div>
   );
