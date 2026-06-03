@@ -83,5 +83,117 @@ INSERT INTO inventory (item_name, quantity, location_zone, last_updated) VALUES
     -- Zone D3
     ('Grease Gun 400ml',             22, 'D3', NOW()),
     -- Zone D4  ← low stock, replenishment target
-    ('Torque Wrench 20-100Nm',        9, 'D4', NOW())
+    ('Torque Wrench 20-100Nm',        9, 'D4', NOW()),
+    -- Zone E1
+    ('Drive Belt 50mm',              45, 'E1', NOW()),
+    ('Shaft Coupling 25mm',          22, 'E1', NOW()),
+    ('Gear Pulley Set',              18, 'E1', NOW()),
+    -- Zone E2  ← replenishment target
+    ('Pneumatic Hose 8mm 5m',        30, 'E2', NOW()),
+    ('Pressure Gauge 0-10bar',       14, 'E2', NOW()),
+    ('Flow Control Valve 1/4in',      8, 'E2', NOW()),
+    -- Zone E3
+    ('Conveyor Chain Link 12B',      60, 'E3', NOW()),
+    ('Tension Spring 50N',           90, 'E3', NOW()),
+    ('Guide Rail 1m Aluminium',      25, 'E3', NOW()),
+    -- Zone E4
+    ('Servo Motor 200W',             12, 'E4', NOW()),
+    ('Linear Rail 500mm',            20, 'E4', NOW()),
+    ('Ball Screw 1m',                 8, 'E4', NOW()),
+    -- Zone F1
+    ('Temperature Sensor PT100',     35, 'F1', NOW()),
+    ('Humidity Sensor Module',       28, 'F1', NOW()),
+    ('Pressure Transmitter 4-20mA',  16, 'F1', NOW()),
+    -- Zone F2
+    ('Power Supply 24VDC 5A',        22, 'F2', NOW()),
+    ('Circuit Breaker 16A',          40, 'F2', NOW()),
+    ('Relay Module 8-channel',       18, 'F2', NOW()),
+    -- Zone F3  ← replenishment target
+    ('Industrial Switch 16-port',     5, 'F3', NOW()),
+    ('Ethernet Cable Cat6 10m',      80, 'F3', NOW()),
+    ('Fibre Optic Patch Cord 2m',    12, 'F3', NOW()),
+    -- Zone F4
+    ('PLC Input Module 16DI',        10, 'F4', NOW()),
+    ('PLC Output Module 16DO',       10, 'F4', NOW()),
+    ('HMI Panel 7 inch',              6, 'F4', NOW()),
+    -- Zone G1  ← replenishment target
+    ('Aluminium Sheet 2mm 1x2m',      7, 'G1', NOW()),
+    ('Steel Plate 5mm 1x1m',         15, 'G1', NOW()),
+    ('Copper Rod 10mm 1m',           30, 'G1', NOW()),
+    -- Zone G2
+    ('Rubber Sheet 10mm 1x1m',       20, 'G2', NOW()),
+    ('Neoprene Gasket Roll 5m',      14, 'G2', NOW()),
+    ('Fibreglass Panel 4mm',         10, 'G2', NOW()),
+    -- Zone G3
+    ('Resin Epoxy 1kg',              25, 'G3', NOW()),
+    ('Bonding Adhesive 300ml',       40, 'G3', NOW()),
+    ('Sealant Tube 310ml',           55, 'G3', NOW()),
+    -- Zone G4
+    ('Welding Wire 1mm 5kg',         18, 'G4', NOW()),
+    ('Welding Rod E7016 5kg',        22, 'G4', NOW()),
+    ('MIG Wire 0.8mm 15kg',          10, 'G4', NOW()),
+    -- Zone H1
+    ('Safety Harness Full Body',     14, 'H1', NOW()),
+    ('Lanyard 1.8m Shock Absorb',    20, 'H1', NOW()),
+    ('Fall Arrest Device',            8, 'H1', NOW()),
+    -- Zone H2
+    ('Chemical Resistant Gloves L',  60, 'H2', NOW()),
+    ('Acid Apron PVC',               18, 'H2', NOW()),
+    ('Face Shield Anti-splash',      24, 'H2', NOW()),
+    -- Zone H3
+    ('Dust Mask P3 Valved',          80, 'H3', NOW()),
+    ('Half-face Respirator',         22, 'H3', NOW()),
+    ('Gas Detector Personal 4-gas',   9, 'H3', NOW()),
+    -- Zone H4  ← replenishment target
+    ('Safety Cone 75cm',              6, 'H4', NOW()),
+    ('Barrier Tape 500m Roll',       12, 'H4', NOW()),
+    ('Warning Light Amber',          16, 'H4', NOW()),
+    -- Zone I1
+    ('Hex Bolt M10x50 100pk',        45, 'I1', NOW()),
+    ('Hex Nut M10 100pk',            50, 'I1', NOW()),
+    ('Flat Washer M10 200pk',        60, 'I1', NOW()),
+    -- Zone I2
+    ('Stainless Screw M6x20 50pk',   35, 'I2', NOW()),
+    ('Rivet Aluminium 4mm 500pk',    28, 'I2', NOW()),
+    ('Thread Insert M8 20pk',        40, 'I2', NOW()),
+    -- Zone I3  ← replenishment target
+    ('Anchor Bolt M12 10pk',          7, 'I3', NOW()),
+    ('Chemical Anchor 300ml',        12, 'I3', NOW()),
+    ('Expansion Bolt M10 20pk',      18, 'I3', NOW()),
+    -- Zone I4
+    ('Pipe Clamp 25mm 10pk',         30, 'I4', NOW()),
+    ('Cable Clamp 20mm 20pk',        45, 'I4', NOW()),
+    ('U-bolt 30mm 10pk',             25, 'I4', NOW()),
+    -- Zone J1
+    ('Cutting Disc 125mm 10pk',      40, 'J1', NOW()),
+    ('Grinding Disc 180mm 5pk',      30, 'J1', NOW()),
+    ('Flap Disc P80 5pk',            25, 'J1', NOW()),
+    -- Zone J2  ← replenishment target
+    ('Hydraulic Fluid ISO46 20L',     8, 'J2', NOW()),
+    ('Gear Oil 220 20L',             10, 'J2', NOW()),
+    ('Chain Lubricant 5L',           15, 'J2', NOW()),
+    -- Zone J3
+    ('Cleaning Solvent 5L',          20, 'J3', NOW()),
+    ('Degreaser Spray 500ml',        35, 'J3', NOW()),
+    ('Isopropanol 1L',               28, 'J3', NOW()),
+    -- Zone J4
+    ('Cable Duct 40x25mm 2m',        50, 'J4', NOW()),
+    ('Heat Shrink Tubing 5mm 5m',    60, 'J4', NOW()),
+    ('Cable Marker Set 200pk',       22, 'J4', NOW()),
+    -- Zone K1  ← replenishment target
+    ('Storage Bin 15L Blue',          9, 'K1', NOW()),
+    ('Storage Bin 30L Red',          12, 'K1', NOW()),
+    ('Divider Set for Bins',         20, 'K1', NOW()),
+    -- Zone K2
+    ('Sack Truck Foldable',          10, 'K2', NOW()),
+    ('Platform Trolley 500kg',        6, 'K2', NOW()),
+    ('Drum Trolley Stainless',        4, 'K2', NOW()),
+    -- Zone K3
+    ('Racking Beam 1800mm',          24, 'K3', NOW()),
+    ('Racking Upright 3000mm',       16, 'K3', NOW()),
+    ('Wire Mesh Deck 900x900mm',     20, 'K3', NOW()),
+    -- Zone K4  ← replenishment target
+    ('Stretch Wrap Machine',          4, 'K4', NOW()),
+    ('Banding Tool Steel',            8, 'K4', NOW()),
+    ('Corner Protector Pack 50pk',   30, 'K4', NOW())
 ON CONFLICT (item_name) DO NOTHING;

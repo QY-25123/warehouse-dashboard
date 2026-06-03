@@ -50,16 +50,23 @@ TICK_INTERVAL = 2.0
 _tick_count: int = 0
 
 # ── Zone centre coordinates ───────────────────────────────────────────────────
-# Special zones sit OUTSIDE the 0-100 main grid so they render in their own
-# SVG panels with a visible gap from the A1-D4 shelf zones.
+# Grid: 4 columns × 25 SVG units wide, 11 rows × 10 SVG units tall (0-110).
+# Special zones sit OUTSIDE the main grid.
 _ZONE_COORDS: dict[str, tuple[float, float]] = {
-    'A1': (12.5, 12.5), 'A2': (37.5, 12.5), 'A3': (62.5, 12.5), 'A4': (87.5, 12.5),
-    'B1': (12.5, 37.5), 'B2': (37.5, 37.5), 'B3': (62.5, 37.5), 'B4': (87.5, 37.5),
-    'C1': (12.5, 62.5), 'C2': (37.5, 62.5), 'C3': (62.5, 62.5), 'C4': (87.5, 62.5),
-    'D1': (12.5, 87.5), 'D2': (37.5, 87.5), 'D3': (62.5, 87.5), 'D4': (87.5, 87.5),
-    'DOCK': (-10.0,  50.0),
-    'SHIP': (110.0,  50.0),
-    'STOR': ( 50.0, 110.0),
+    'A1': (12.5,   5.0), 'A2': (37.5,   5.0), 'A3': (62.5,   5.0), 'A4': (87.5,   5.0),
+    'B1': (12.5,  15.0), 'B2': (37.5,  15.0), 'B3': (62.5,  15.0), 'B4': (87.5,  15.0),
+    'C1': (12.5,  25.0), 'C2': (37.5,  25.0), 'C3': (62.5,  25.0), 'C4': (87.5,  25.0),
+    'D1': (12.5,  35.0), 'D2': (37.5,  35.0), 'D3': (62.5,  35.0), 'D4': (87.5,  35.0),
+    'E1': (12.5,  45.0), 'E2': (37.5,  45.0), 'E3': (62.5,  45.0), 'E4': (87.5,  45.0),
+    'F1': (12.5,  55.0), 'F2': (37.5,  55.0), 'F3': (62.5,  55.0), 'F4': (87.5,  55.0),
+    'G1': (12.5,  65.0), 'G2': (37.5,  65.0), 'G3': (62.5,  65.0), 'G4': (87.5,  65.0),
+    'H1': (12.5,  75.0), 'H2': (37.5,  75.0), 'H3': (62.5,  75.0), 'H4': (87.5,  75.0),
+    'I1': (12.5,  85.0), 'I2': (37.5,  85.0), 'I3': (62.5,  85.0), 'I4': (87.5,  85.0),
+    'J1': (12.5,  95.0), 'J2': (37.5,  95.0), 'J3': (62.5,  95.0), 'J4': (87.5,  95.0),
+    'K1': (12.5, 105.0), 'K2': (37.5, 105.0), 'K3': (62.5, 105.0), 'K4': (87.5, 105.0),
+    'DOCK': (-10.0,  55.0),
+    'SHIP': (110.0,  55.0),
+    'STOR': ( 50.0, 118.0),
 }
 
 # ── Per-task two-leg state machine ────────────────────────────────────────────
@@ -81,12 +88,12 @@ _forklift_interrupted_task: dict[int, int] = {}
 
 
 def _xy_to_zone(x: float, y: float) -> str:
-    """Map coordinates to a zone label. x<0 → DOCK, x>100 → SHIP, y>100 → STOR."""
+    """Map coordinates to a zone label. x<0 → DOCK, x>100 → SHIP, y>110 → STOR."""
     if x < 0:   return 'DOCK'
     if x > 100: return 'SHIP'
-    if y > 100: return 'STOR'
+    if y > 110: return 'STOR'
     col = min(int(x / 25), 3) + 1
-    row = chr(ord('A') + min(int(y / 25), 3))
+    row = chr(ord('A') + min(int(y / 10), 10))  # 11 rows A-K
     return f"{row}{col}"
 
 
@@ -150,11 +157,26 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
 
 # ── Step 1: Task creation (every 10 ticks) ────────────────────────────────────
 
+_ALL_ZONES: list[str] = [
+    'A1','A2','A3','A4',
+    'B1','B2','B3','B4',
+    'C1','C2','C3','C4',
+    'D1','D2','D3','D4',
+    'E1','E2','E3','E4',
+    'F1','F2','F3','F4',
+    'G1','G2','G3','G4',
+    'H1','H2','H3','H4',
+    'I1','I2','I3','I4',
+    'J1','J2','J3','J4',
+    'K1','K2','K3','K4',
+]
+
 _TASK_CONFIGS: list[dict[str, Any]] = [
-    {'type': 'inbound',       'origin': 'DOCK', 'destinations': ['A1','A2','A3','A4','B1','B2','B3','B4','C1','C2','C3','C4','D1','D2','D3','D4']},
-    {'type': 'outbound',      'origins':        ['A1','A2','A3','A4','B1','B2','B3','B4','C1','C2','C3','C4','D1','D2','D3','D4'], 'destination': 'SHIP'},
-    {'type': 'relocation',    'zones':          ['A1','A2','A3','A4','B1','B2','B3','B4','C1','C2','C3','C4','D1','D2','D3','D4']},
-    {'type': 'replenishment', 'origin': 'STOR', 'destinations': ['A3','A4','C1','C4','D1','D4']},
+    {'type': 'inbound',       'origin': 'DOCK', 'destinations': _ALL_ZONES},
+    {'type': 'outbound',      'origins':        _ALL_ZONES, 'destination': 'SHIP'},
+    {'type': 'relocation',    'zones':          _ALL_ZONES},
+    {'type': 'replenishment', 'origin': 'STOR',
+     'destinations': ['A3','A4','C1','C4','D1','D4','E2','F3','G1','H4','I3','J2','K1','K4']},
 ]
 
 
