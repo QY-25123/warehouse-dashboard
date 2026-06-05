@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Produce a self-contained server bundle under .next/standalone/
-  // Required for the multi-stage Docker image.
-  output: 'standalone',
+  // 'standalone' bundles the app for Docker; Vercel uses its own output format.
+  ...(process.env.BUILD_STANDALONE === 'true' && { output: 'standalone' }),
 };
 
 module.exports = nextConfig;
