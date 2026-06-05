@@ -51,6 +51,9 @@ const TASK_TYPE_STYLE: Record<Task['type'], { bg: string; border: string; color:
   replenishment: { bg: '#10B98120', border: '#10B98150', color: '#10B981', label: 'Replenishment' },
 };
 
+const STATUS_BADGE_FALLBACK = { bg: '#37415120', color: '#9CA3AF', border: '#37415150', text: 'Unknown' };
+const TASK_TYPE_FALLBACK    = { bg: '#37415120', border: '#37415150', color: '#9CA3AF', label: 'Unknown' };
+
 // 11 rows A-K, 4 cols; each row = 10 SVG units, each col = 25 SVG units.
 const ZONES = (['A','B','C','D','E','F','G','H','I','J','K'] as const).flatMap((row, ri) =>
   ([1, 2, 3, 4] as const).map((col) => ({
@@ -187,7 +190,7 @@ function ForkliftMarker({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const color = STATUS_COLOR[f.status];
+  const color = STATUS_COLOR[f.status] ?? '#374151';
   const dx    = prevPos ? f.x - prevPos.x : 0;
   const dy    = prevPos ? f.y - prevPos.y : 0;
   const angle = (Math.abs(dx) + Math.abs(dy) > 0.1)
@@ -229,7 +232,7 @@ function ForkliftMarker({
       <rect x={f.x-2.4} y={f.y+2.8} width={4.8} height={2.2} rx={1.1}
         fill="rgba(15,17,23,0.8)" />
       <text x={f.x} y={f.y+4.3} textAnchor="middle" fontSize={1.7}
-        fill={LABEL_COLOR[f.status]} fontWeight="600">
+        fill={LABEL_COLOR[f.status] ?? '#9CA3AF'} fontWeight="600">
         {num}
       </text>
     </g>
@@ -333,7 +336,7 @@ function ActiveTasksPanel({
           {tasks.map((task) => {
             const fork     = task.forklift_id != null ? forklifts.get(task.forklift_id) : undefined;
             const phase    = fork ? forkliftPhases.get(fork.id) : undefined;
-            const typeStyle = TASK_TYPE_STYLE[task.type];
+            const typeStyle = TASK_TYPE_STYLE[task.type] ?? TASK_TYPE_FALLBACK;
             const isHighlighted = task.forklift_id != null && hoveredId === task.forklift_id;
 
             return (
@@ -372,22 +375,25 @@ function ActiveTasksPanel({
                 </div>
 
                 {/* Forklift */}
-                {fork && (
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <span style={{ fontSize: 10, color: '#94A3B8' }}>🚜</span>
-                    <span style={{ fontSize: 11, color: '#94A3B8' }}>{fork.name}</span>
-                    <span style={{
-                      marginLeft: 'auto',
-                      fontSize: 9, fontWeight: 600,
-                      color: STATUS_BADGE_STYLE[fork.status].color,
-                      background: STATUS_BADGE_STYLE[fork.status].bg,
-                      border: `1px solid ${STATUS_BADGE_STYLE[fork.status].border}`,
-                      borderRadius: 999, padding: '1px 5px',
-                    }}>
-                      {STATUS_BADGE_STYLE[fork.status].text}
-                    </span>
-                  </div>
-                )}
+                {fork && (() => {
+                  const forkBadge = STATUS_BADGE_STYLE[fork.status] ?? STATUS_BADGE_FALLBACK;
+                  return (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <span style={{ fontSize: 10, color: '#94A3B8' }}>🚜</span>
+                      <span style={{ fontSize: 11, color: '#94A3B8' }}>{fork.name}</span>
+                      <span style={{
+                        marginLeft: 'auto',
+                        fontSize: 9, fontWeight: 600,
+                        color: forkBadge.color,
+                        background: forkBadge.bg,
+                        border: `1px solid ${forkBadge.border}`,
+                        borderRadius: 999, padding: '1px 5px',
+                      }}>
+                        {forkBadge.text}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Phase indicator */}
                 <div style={{
@@ -622,7 +628,7 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {sorted.map((f, i) => {
-                const badge = STATUS_BADGE_STYLE[f.status];
+                const badge = STATUS_BADGE_STYLE[f.status] ?? STATUS_BADGE_FALLBACK;
                 const isErr = f.status === 'error';
                 const isHov = hoveredId === f.id;
                 const zone  = coordsToZone(f.x, f.y);
@@ -641,7 +647,7 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
                     }}
                   >
                     <span className="h-2 w-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: STATUS_COLOR[f.status] }} />
+                      style={{ backgroundColor: STATUS_COLOR[f.status] ?? '#374151' }} />
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', flex: 1 }}>
                       {f.name}
                     </span>
