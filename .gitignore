@@ -1,0 +1,21 @@
+# Local environment files — never commit these
+.env.local
+.env.*.local
+.env
+
+# Dependencies
+node_modules/
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# macOS
+.DS_Store
