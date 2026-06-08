@@ -97,14 +97,29 @@ def _xy_to_zone(x: float, y: float) -> str:
     return f"{row}{col}"
 
 
-def _leg1_target(task_type: str, origin_zone: str) -> tuple[float, float]:
-    if task_type == 'inbound':      return _ZONE_COORDS['DOCK']
-    if task_type == 'replenishment': return _ZONE_COORDS['STOR']
+# 5 evenly-spaced slots inside each special zone so concurrent forklifts
+# don't stack on the same pixel. Slot is chosen by forklift_id % 5.
+_SPECIAL_ZONE_SLOTS: dict[str, list[tuple[float, float]]] = {
+    'DOCK': [(-10.0, y) for y in [44.0, 49.0, 54.0, 59.0, 64.0]],
+    'SHIP': [(110.0, y) for y in [44.0, 49.0, 54.0, 59.0, 64.0]],
+    'STOR': [(x, 116.0) for x in [40.0, 45.0, 50.0, 55.0, 60.0]],
+}
+
+
+def _leg1_target(task_type: str, origin_zone: str, fid: int = 0) -> tuple[float, float]:
+    if task_type == 'inbound':
+        slots = _SPECIAL_ZONE_SLOTS['DOCK']
+        return slots[fid % len(slots)]
+    if task_type == 'replenishment':
+        slots = _SPECIAL_ZONE_SLOTS['STOR']
+        return slots[fid % len(slots)]
     return _ZONE_COORDS.get(origin_zone, (50.0, 50.0))
 
 
-def _leg2_target(task_type: str, destination_zone: str) -> tuple[float, float]:
-    if task_type == 'outbound': return _ZONE_COORDS['SHIP']
+def _leg2_target(task_type: str, destination_zone: str, fid: int = 0) -> tuple[float, float]:
+    if task_type == 'outbound':
+        slots = _SPECIAL_ZONE_SLOTS['SHIP']
+        return slots[fid % len(slots)]
     return _ZONE_COORDS.get(destination_zone, (50.0, 50.0))
 
 
@@ -356,7 +371,7 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
                     logger.warning("Out-of-stock update for task %d failed: %s", tid, exc)
                 continue  # forklift stays idle; reassigned next tick
 
-        tx, ty = _leg1_target(t_type, task['origin_zone'])
+        tx, ty = _leg1_target(t_type, task['origin_zone'], fid)
         try:
             await conn.execute(
                 "UPDATE tasks "
@@ -432,13 +447,13 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                     'start_tick': _tick_count, 'target_x': 0.0, 'target_y': 0.0,
                 }
             elif fstatus == 'moving_loaded':
-                l2x, l2y = _leg2_target(row['type'], row['destination_zone'])
+                l2x, l2y = _leg2_target(row['type'], row['destination_zone'], fid)
                 _task_state[tid] = {
                     'leg': 2, 'phase': 'moving', 'remaining': 3,
                     'start_tick': _tick_count, 'target_x': l2x, 'target_y': l2y,
                 }
             else:  # moving_empty
-                l1x, l1y = _leg1_target(row['type'], row['origin_zone'])
+                l1x, l1y = _leg1_target(row['type'], row['origin_zone'], fid)
                 _task_state[tid] = {
                     'leg': 1, 'phase': 'moving', 'remaining': 3,
                     'start_tick': _tick_count, 'target_x': l1x, 'target_y': l1y,
@@ -521,7 +536,7 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
 
             if state['leg'] == 1:
                 # Leg 1 done — start leg 2 (forklift now carries cargo).
-                l2x, l2y = _leg2_target(row['type'], row['destination_zone'])
+                l2x, l2y = _leg2_target(row['type'], row['destination_zone'], fid)
                 try:
                     await conn.execute(
                         "UPDATE forklifts "
@@ -734,6 +749,10 @@ async def _recover_sensors(conn: asyncpg.Connection) -> list[dict]:
                     "UPDATE tasks SET status='in-progress'::task_status, updated_at=NOW() WHERE id=$1",
                     tid,
                 )
+                task_info = await conn.fetchrow(
+                    "SELECT type::text AS type, origin_zone, destination_zone FROM tasks WHERE id=$1",
+                    tid,
+                )
                 await conn.execute(
                     "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
                     'task_resumed',
@@ -750,7 +769,12 @@ async def _recover_sensors(conn: asyncpg.Connection) -> list[dict]:
                     'status': resume_status, 'x': float(row['x']), 'y': float(row['y']),
                 }})
                 msgs.append({'type': 'task_update', 'payload': {
-                    'id': tid, 'status': 'in-progress', 'forklift_id': fid,
+                    'id': tid,
+                    'type': task_info['type'] if task_info else None,
+                    'status': 'in-progress',
+                    'forklift_id': fid,
+                    'origin_zone': task_info['origin_zone'] if task_info else None,
+                    'destination_zone': task_info['destination_zone'] if task_info else None,
                 }})
                 logger.info("Forklift %d recovered → %s, task %d resumed (leg %d, %s)",
                             fid, resume_status, tid, leg, phase)

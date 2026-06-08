@@ -334,9 +334,10 @@ function ActiveTasksPanel({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
           {tasks.map((task) => {
-            const fork     = task.forklift_id != null ? forklifts.get(task.forklift_id) : undefined;
-            const phase    = fork ? forkliftPhases.get(fork.id) : undefined;
+            const fork      = task.forklift_id != null ? forklifts.get(task.forklift_id) : undefined;
+            const phase     = fork ? forkliftPhases.get(fork.id) : undefined;
             const typeStyle = TASK_TYPE_STYLE[task.type] ?? TASK_TYPE_FALLBACK;
+            const isDelayed = task.status === 'delayed';
             const isHighlighted = task.forklift_id != null && hoveredId === task.forklift_id;
 
             return (
@@ -345,14 +346,17 @@ function ActiveTasksPanel({
                 onMouseEnter={() => task.forklift_id != null && onHover(task.forklift_id)}
                 onMouseLeave={() => onHover(null)}
                 style={{
-                  background: isHighlighted ? '#2A2D3E' : '#0F111780',
-                  border: `1px solid ${isHighlighted ? typeStyle.color + '60' : '#2A2D3E'}`,
-                  borderLeft: `3px solid ${typeStyle.color}`,
+                  background: isDelayed
+                    ? '#EF444408'
+                    : isHighlighted ? '#2A2D3E' : '#0F111780',
+                  border: `1px solid ${isDelayed ? '#EF444430' : isHighlighted ? typeStyle.color + '60' : '#2A2D3E'}`,
+                  borderLeft: `3px solid ${isDelayed ? '#EF4444' : typeStyle.color}`,
                   borderRadius: 8,
                   padding: '8px 10px',
                   cursor: 'default',
                   transition: 'all 0.15s',
                   flexShrink: 0,
+                  opacity: isDelayed ? 0.75 : 1,
                 }}
               >
                 {/* Header row */}
@@ -360,13 +364,24 @@ function ActiveTasksPanel({
                   <span style={{ fontSize: 10, color: '#4B5563', fontVariantNumeric: 'tabular-nums' }}>
                     #{task.id}
                   </span>
-                  <span style={{
-                    fontSize: 9, fontWeight: 600, color: typeStyle.color,
-                    background: typeStyle.bg, border: `1px solid ${typeStyle.border}`,
-                    borderRadius: 999, padding: '1px 6px',
-                  }}>
-                    {typeStyle.label}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {isDelayed && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 600, color: '#EF4444',
+                        background: '#EF444420', border: '1px solid #EF444450',
+                        borderRadius: 999, padding: '1px 6px',
+                      }}>
+                        PAUSED
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: 9, fontWeight: 600, color: typeStyle.color,
+                      background: typeStyle.bg, border: `1px solid ${typeStyle.border}`,
+                      borderRadius: 999, padding: '1px 6px',
+                    }}>
+                      {typeStyle.label}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Route */}
@@ -397,11 +412,12 @@ function ActiveTasksPanel({
 
                 {/* Phase indicator */}
                 <div style={{
-                  fontSize: 10, color: typeStyle.color,
-                  background: typeStyle.bg, borderRadius: 4,
-                  padding: '2px 6px', marginBottom: 4,
+                  fontSize: 10,
+                  color: isDelayed ? '#EF4444' : typeStyle.color,
+                  background: isDelayed ? '#EF444415' : typeStyle.bg,
+                  borderRadius: 4, padding: '2px 6px', marginBottom: 4,
                 }}>
-                  {phaseLabel(fork?.status, phase)}
+                  {isDelayed ? '⚠ Paused — forklift error, resuming soon' : phaseLabel(fork?.status, phase)}
                 </div>
 
                 {/* Time */}
@@ -476,7 +492,7 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
 
     if (msg.type === 'task_update') {
       const { id, status } = msg.payload;
-      if (status === 'in-progress') {
+      if (status === 'in-progress' || status === 'delayed') {
         setActiveTasks((prev) => {
           const existing = prev.get(id);
           const next = new Map(prev);
@@ -507,7 +523,11 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
   });
 
   const activeTasksList = Array.from(activeTasks.values())
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    .sort((a, b) => {
+      if (a.status === 'delayed' && b.status !== 'delayed') return 1;
+      if (b.status === 'delayed' && a.status !== 'delayed') return -1;
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
 
   const hovered = hoveredId != null ? forklifts.get(hoveredId) : undefined;
   const tx = hovered ? (hovered.x > 64 ? Math.max(hovered.x - 36, -16) : Math.min(hovered.x + 4, 80)) : 0;
