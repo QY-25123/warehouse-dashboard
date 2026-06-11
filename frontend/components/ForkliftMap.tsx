@@ -465,6 +465,19 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
   }, [forklifts, onFleetChange]);
 
   const onMessage = useCallback((msg: WsMessage) => {
+    if (msg.type === 'forklift_position') {
+      const { id, x, y } = msg.payload;
+      setForklifts((prev) => {
+        const existing = prev.get(id);
+        if (!existing) return prev;
+        prevPositions.current.set(id, { x: existing.x, y: existing.y });
+        const next = new Map(prev);
+        next.set(id, { ...existing, x, y, last_updated: new Date().toISOString() });
+        return next;
+      });
+      return;
+    }
+
     if (msg.type === 'forklift_update') {
       const { id, status } = msg.payload;
       const prevStatus = prevStatusRef.current.get(id) ?? '';

@@ -63,6 +63,14 @@ _TICK_UPDATE_SKIP: list[str] = [
     'task_created',
 ]
 
+# Sliding-window position filter: only broadcast a forklift_position update
+# when the forklift has moved at least this many SVG units since the last
+# broadcast. Suppresses sub-threshold GPS noise from a real warehouse API.
+_POS_MIN_DELTA: float = 1.0
+
+# forklift_id → (x, y) of the last position that was broadcast
+_last_broadcast_pos: dict[int, tuple[float, float]] = {}
+
 # ── Zone centre coordinates ───────────────────────────────────────────────────
 # Grid: 4 columns × 25 SVG units wide, 11 rows × 10 SVG units tall (0-110).
 # Special zones sit OUTSIDE the main grid.
@@ -169,10 +177,9 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
             tick_start,
             _TICK_UPDATE_SKIP,
         )
-    for msg in msgs:
-        await manager.broadcast(msg)
+    batch: list[dict[str, Any]] = list(msgs)
     if new_event_rows:
-        await manager.broadcast({
+        batch.append({
             'type': 'tick_update',
             'new_events': [
                 {
@@ -184,6 +191,8 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
                 for r in new_event_rows
             ],
         })
+    if batch:
+        await manager.broadcast({'type': 'batch', 'messages': batch})
 
 
 # ── Step 1: Task creation (every 10 ticks) ────────────────────────────────────
@@ -538,11 +547,17 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                 except Exception as exc:
                     logger.warning("Move forklift %d failed: %s", fid, exc)
                     continue
-                msgs.append({
-                    'type': 'forklift_update',
-                    'payload': {'id': fid, 'name': row['fname'],
-                                'status': new_status, 'x': new_x, 'y': new_y},
-                })
+                last = _last_broadcast_pos.get(fid)
+                moved_enough = (
+                    last is None or
+                    math.sqrt((new_x - last[0]) ** 2 + (new_y - last[1]) ** 2) >= _POS_MIN_DELTA
+                )
+                if moved_enough:
+                    _last_broadcast_pos[fid] = (new_x, new_y)
+                    msgs.append({
+                        'type': 'forklift_position',
+                        'payload': {'id': fid, 'x': new_x, 'y': new_y},
+                    })
 
         # ── Loading phase — wait out the countdown ────────────────────────────
         elif state['phase'] == 'loading':
@@ -606,6 +621,7 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                     _task_state.pop(tid, None)
                     continue
                 _task_state.pop(tid, None)
+                _last_broadcast_pos.pop(fid, None)
                 msgs.append({
                     'type': 'task_update',
                     'payload': {

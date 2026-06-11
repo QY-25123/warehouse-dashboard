@@ -41,7 +41,12 @@ export function useWebSocket({
 
       ws.onmessage = ({ data }) => {
         try {
-          callbackRef.current?.(JSON.parse(data) as WsMessage);
+          const raw = JSON.parse(data) as WsMessage;
+          if (raw.type === 'batch') {
+            for (const m of raw.messages) callbackRef.current?.(m);
+          } else {
+            callbackRef.current?.(raw);
+          }
         } catch {
           // ignore malformed frames
         }

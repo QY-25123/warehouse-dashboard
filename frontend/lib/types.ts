@@ -77,6 +77,12 @@ export interface WsForkliftPayload {
   y: number;
 }
 
+export interface WsForkliftPositionPayload {
+  id: number;
+  x: number;
+  y: number;
+}
+
 export interface WsTaskPayload {
   id: number;
   type: Task['type'];
@@ -115,7 +121,9 @@ export interface WsAlertPayload {
 }
 
 export type WsMessage =
+  | { type: 'batch';             messages: WsMessage[] }
   | { type: 'forklift_update';   payload: WsForkliftPayload }
+  | { type: 'forklift_position'; payload: WsForkliftPositionPayload }
   | { type: 'task_update';       payload: WsTaskPayload }
   | { type: 'task_created';      payload: WsTaskCreatedPayload }
   | { type: 'inventory_update';  payload: WsInventoryPayload }
