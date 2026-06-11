@@ -43,3 +43,19 @@ async def list_events(
         rows = await conn.fetch(query, *params)
 
     return [dict(r) for r in rows]
+
+
+@router.get("/heatmap", response_model=dict[str, int])
+async def events_heatmap(
+    limit: int = Query(500, ge=1, le=5000, description="Number of recent zone_entry events to aggregate"),
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Return per-zone visit counts aggregated server-side from the most recent zone_entry events."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT payload->>'zone' AS zone, COUNT(*)::int AS count "
+            "FROM (SELECT payload FROM events WHERE type='zone_entry' ORDER BY id DESC LIMIT $1) t "
+            "GROUP BY zone",
+            limit,
+        )
+    return {r["zone"]: r["count"] for r in rows if r["zone"]}

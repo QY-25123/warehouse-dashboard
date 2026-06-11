@@ -78,5 +78,8 @@ export const api = {
   events: {
     list: (filters?: EventFilters) =>
       get<Event[]>('/events', filters as Record<string, string | number | undefined>),
+
+    heatmap: (limit?: number) =>
+      get<Record<string, number>>('/events/heatmap', limit ? { limit } : undefined),
   },
 } as const;

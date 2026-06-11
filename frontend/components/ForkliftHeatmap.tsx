@@ -21,16 +21,6 @@ const SPECIAL_ZONES = [
   { label: 'STOR', sublabel: 'STORAGE',   x: 37.5, y: 112, w: 25, h:  8, accent: '#8B5CF6' },
 ] as const;
 
-function coordsToZone(x: unknown, y: unknown): string {
-  const nx = Number(x); const ny = Number(y);
-  if (!isFinite(nx) || !isFinite(ny)) return '';
-  if (nx < 0)    return 'DOCK';
-  if (nx > 100)  return 'SHIP';
-  if (ny > 110)  return 'STOR';
-  const col = Math.floor(Math.min(Math.max(nx, 0), 99.9) / 25) + 1;
-  const row = String.fromCharCode(65 + Math.floor(Math.min(Math.max(ny, 0), 109.9) / 10));
-  return `${row}${col}`;
-}
 
 function intensityToColor(t: number): string {
   if (t <= 0) return '#1A1D27';
@@ -73,14 +63,10 @@ export function ForkliftHeatmap() {
   useEffect(() => {
     async function load() {
       try {
-        const events = await api.events.list({ limit: 500 });
-        const map = new Map<string, number>();
-        for (const ev of events) {
-          const zone = coordsToZone(ev.payload.x, ev.payload.y);
-          if (zone) map.set(zone, (map.get(zone) ?? 0) + 1);
-        }
+        const data = await api.events.heatmap(500);
+        const map = new Map(Object.entries(data));
         setCounts(map);
-        setTotal(Array.from(map.values()).reduce((a, b) => a + b, 0));
+        setTotal(Object.values(data).reduce((a, b) => a + b, 0));
         setLastRefresh(new Date());
       } catch {
         // retain stale data

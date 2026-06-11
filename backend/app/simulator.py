@@ -49,6 +49,20 @@ TICK_INTERVAL = 2.0
 
 _tick_count: int = 0
 
+# Event types excluded from tick_update broadcasts:
+#   zone_entry           — high-volume position telemetry; served by /events/heatmap instead
+#   inventory_restocked  — already broadcast as inventory_update WS message
+#   inventory_depleted   — already broadcast as inventory_update WS message
+#   inventory_relocated  — already broadcast as inventory_update WS message
+#   task_created         — already broadcast as task_created WS message
+_TICK_UPDATE_SKIP: list[str] = [
+    'zone_entry',
+    'inventory_restocked',
+    'inventory_depleted',
+    'inventory_relocated',
+    'task_created',
+]
+
 # ── Zone centre coordinates ───────────────────────────────────────────────────
 # Grid: 4 columns × 25 SVG units wide, 11 rows × 10 SVG units tall (0-110).
 # Special zones sit OUTSIDE the main grid.
@@ -150,8 +164,10 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
         msgs += await _check_alerts(conn)
         new_event_rows = await conn.fetch(
             "SELECT id, type, payload, timestamp FROM events "
-            "WHERE timestamp >= $1 ORDER BY timestamp ASC",
+            "WHERE timestamp >= $1 AND type != ALL($2::text[]) "
+            "ORDER BY timestamp ASC",
             tick_start,
+            _TICK_UPDATE_SKIP,
         )
     for msg in msgs:
         await manager.broadcast(msg)
