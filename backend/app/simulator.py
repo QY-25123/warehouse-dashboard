@@ -71,6 +71,13 @@ _POS_MIN_DELTA: float = 1.0
 # forklift_id → (x, y) of the last position that was broadcast
 _last_broadcast_pos: dict[int, tuple[float, float]] = {}
 
+# In-memory forklift state — eliminates SELECT FROM forklifts every tick.
+# Populated on the first tick from DB; kept in sync on every status/position change.
+_forklift_cache: dict[int, dict[str, Any]] = {}
+
+# Forklift statuses that indicate an active task is being executed
+_ACTIVE_STATUSES: frozenset[str] = frozenset({'moving_empty', 'moving_loaded', 'loading'})
+
 # ── Zone centre coordinates ───────────────────────────────────────────────────
 # Grid: 4 columns × 25 SVG units wide, 11 rows × 10 SVG units tall (0-110).
 # Special zones sit OUTSIDE the main grid.
@@ -145,6 +152,21 @@ def _leg2_target(task_type: str, destination_zone: str, fid: int = 0) -> tuple[f
     return _ZONE_COORDS.get(destination_zone, (50.0, 50.0))
 
 
+async def _init_forklift_cache(conn: asyncpg.Connection) -> None:
+    """Populate _forklift_cache from DB on the first tick. No-op afterwards."""
+    if _forklift_cache:
+        return
+    rows = await conn.fetch(
+        "SELECT id, name, status::text AS status, x, y FROM forklifts"
+    )
+    for r in rows:
+        _forklift_cache[r['id']] = {
+            'id': r['id'], 'name': r['name'], 'status': r['status'],
+            'x': float(r['x']), 'y': float(r['y']),
+        }
+    logger.info("Forklift cache initialised: %d forklifts", len(_forklift_cache))
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 async def run(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
@@ -162,6 +184,7 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
     msgs: list[dict[str, Any]] = []
     tick_start = datetime.now(timezone.utc)
     async with pool.acquire() as conn:
+        await _init_forklift_cache(conn)
         if _tick_count % 10 == 0:
             msgs += await _create_tasks(conn)
         msgs += await _assign_tasks(conn)
@@ -170,6 +193,10 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
         if _tick_count % 30 == 0:
             msgs += await _inject_sensor_fault(conn)
         msgs += await _check_alerts(conn)
+        if _tick_count % 300 == 0:
+            await conn.execute(
+                "DELETE FROM events WHERE timestamp < NOW() - INTERVAL '2 hours'"
+            )
         new_event_rows = await conn.fetch(
             "SELECT id, type, payload, timestamp FROM events "
             "WHERE timestamp >= $1 AND type != ALL($2::text[]) "
@@ -188,7 +215,7 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
                     'payload': dict(r['payload']),
                     'timestamp': r['timestamp'].isoformat(),
                 }
-                for r in new_event_rows
+                for r in new_event_rows[:10]
             ],
         })
     if batch:
@@ -347,12 +374,13 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
             "SELECT id, type::text AS type, origin_zone, destination_zone, inventory_item_id "
             "FROM tasks WHERE status='pending' AND forklift_id IS NULL ORDER BY created_at"
         )
-        idle = await conn.fetch(
-            "SELECT id, name, x, y FROM forklifts WHERE status='idle' ORDER BY id"
-        )
     except Exception as exc:
         logger.warning("Fetch for assignment failed: %s", exc)
         return msgs
+    idle = sorted(
+        [f for f in _forklift_cache.values() if f['status'] == 'idle'],
+        key=lambda f: f['id'],
+    )
 
     for task, fork in zip(pending, idle):
         tid, fid = task['id'], fork['id']
@@ -409,6 +437,7 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
                 "SET status='moving_empty'::forklift_status, last_updated=NOW() WHERE id=$1",
                 fid,
             )
+            _forklift_cache[fid]['status'] = 'moving_empty'
             await conn.execute(
                 "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
                 'task_assigned',
@@ -446,23 +475,29 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
 async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
     msgs: list[dict] = []
     try:
-        rows = await conn.fetch(
-            "SELECT t.id, t.type::text AS type, t.forklift_id, "
-            "       t.origin_zone, t.destination_zone, t.inventory_item_id, "
-            "       f.name AS fname, f.status::text AS fstatus, f.x, f.y "
-            "FROM tasks t "
-            "JOIN forklifts f ON f.id = t.forklift_id "
-            "WHERE t.status = 'in-progress' "
-            "  AND f.status IN ('moving_empty', 'moving_loaded', 'loading')"
+        task_rows = await conn.fetch(
+            "SELECT id, type::text AS type, forklift_id, "
+            "       origin_zone, destination_zone, inventory_item_id "
+            "FROM tasks WHERE status = 'in-progress' AND forklift_id IS NOT NULL"
         )
     except Exception as exc:
         logger.warning("Fetch in-progress tasks failed: %s", exc)
         return msgs
 
+    # Filter in Python using the in-memory cache — no JOIN with forklifts needed
+    rows = [
+        r for r in task_rows
+        if r['forklift_id'] in _forklift_cache
+        and _forklift_cache[r['forklift_id']]['status'] in _ACTIVE_STATUSES
+    ]
+
+    pending_pos: list[tuple[int, float, float]] = []  # (fid, new_x, new_y) — batch UPDATE at end
+
     for row in rows:
         tid     = row['id']
         fid     = row['forklift_id']
-        fstatus = row['fstatus']
+        fc      = _forklift_cache[fid]   # live in-memory entry
+        fstatus = fc['status']
 
         # Bootstrap state for tasks in-progress before the simulator started.
         if tid not in _task_state:
@@ -488,11 +523,10 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
 
         # ── Moving phase — directed step toward target ────────────────────────
         if state['phase'] == 'moving':
-            cx, cy   = float(row['x']), float(row['y'])
+            cx, cy   = fc['x'], fc['y']   # read from cache, not DB
             tx, ty   = state['target_x'], state['target_y']
             dx, dy   = tx - cx, ty - cy
             distance = math.sqrt(dx * dx + dy * dy)
-            new_status = 'moving_empty' if state['leg'] == 1 else 'moving_loaded'
 
             if distance < 2.0:
                 # Arrived — snap to target and begin loading.
@@ -520,23 +554,22 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                 except Exception as exc:
                     logger.warning("Arrival for forklift %d failed: %s", fid, exc)
                     continue
+                fc['x'], fc['y'], fc['status'] = new_x, new_y, 'loading'
                 state['phase']     = 'loading'
                 state['remaining'] = 3
                 msgs.append({
                     'type': 'forklift_update',
-                    'payload': {'id': fid, 'name': row['fname'],
+                    'payload': {'id': fid, 'name': fc['name'],
                                 'status': 'loading', 'x': new_x, 'y': new_y},
                 })
             else:
-                # Still travelling.
+                # Still travelling — update cache now, flush to DB in one batch after loop.
                 step  = min(4.0, distance)
                 new_x = round(cx + (dx / distance) * step, 2)
                 new_y = round(cy + (dy / distance) * step, 2)
+                fc['x'], fc['y'] = new_x, new_y
+                pending_pos.append((fid, new_x, new_y))
                 try:
-                    await conn.execute(
-                        "UPDATE forklifts SET x=$1, y=$2, last_updated=NOW() WHERE id=$3",
-                        new_x, new_y, fid,
-                    )
                     zone = _xy_to_zone(new_x, new_y)
                     if _forklift_zones.get(fid) != zone:
                         _forklift_zones[fid] = zone
@@ -545,8 +578,7 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                             'zone_entry', {'forklift_id': fid, 'zone': zone, 'x': new_x, 'y': new_y},
                         )
                 except Exception as exc:
-                    logger.warning("Move forklift %d failed: %s", fid, exc)
-                    continue
+                    logger.warning("Zone entry for forklift %d failed: %s", fid, exc)
                 last = _last_broadcast_pos.get(fid)
                 moved_enough = (
                     last is None or
@@ -583,13 +615,14 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                 except Exception as exc:
                     logger.warning("Leg 2 start for forklift %d failed: %s", fid, exc)
                     continue
+                fc['status'] = 'moving_loaded'
                 state.update({'leg': 2, 'phase': 'moving',
                               'target_x': l2x, 'target_y': l2y})
                 msgs.append({
                     'type': 'forklift_update',
-                    'payload': {'id': fid, 'name': row['fname'],
+                    'payload': {'id': fid, 'name': fc['name'],
                                 'status': 'moving_loaded',
-                                'x': float(row['x']), 'y': float(row['y'])},
+                                'x': fc['x'], 'y': fc['y']},
                 })
 
             else:
@@ -620,6 +653,7 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                     logger.warning("Complete task %d failed: %s", tid, exc)
                     _task_state.pop(tid, None)
                     continue
+                fc['status'] = 'idle'
                 _task_state.pop(tid, None)
                 _last_broadcast_pos.pop(fid, None)
                 msgs.append({
@@ -633,10 +667,27 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                 })
                 msgs.append({
                     'type': 'forklift_update',
-                    'payload': {'id': fid, 'name': row['fname'],
+                    'payload': {'id': fid, 'name': fc['name'],
                                 'status': 'idle',
-                                'x': float(row['x']), 'y': float(row['y'])},
+                                'x': fc['x'], 'y': fc['y']},
                 })
+
+    # Flush all position-only updates in one round-trip instead of N individual queries
+    if pending_pos:
+        try:
+            await conn.execute(
+                "UPDATE forklifts AS f "
+                "SET x = v.x::numeric(8,2), y = v.y::numeric(8,2), last_updated = NOW() "
+                "FROM (SELECT UNNEST($1::int[]) AS id, "
+                "             UNNEST($2::float8[]) AS x, "
+                "             UNNEST($3::float8[]) AS y) AS v "
+                "WHERE f.id = v.id",
+                [p[0] for p in pending_pos],
+                [p[1] for p in pending_pos],
+                [p[2] for p in pending_pos],
+            )
+        except Exception as exc:
+            logger.warning("Batch position update failed: %s", exc)
 
     return msgs
 
@@ -777,6 +828,8 @@ async def _recover_sensors(conn: asyncpg.Connection) -> list[dict]:
                     "UPDATE forklifts SET status=$1::forklift_status, last_updated=NOW() WHERE id=$2",
                     resume_status, fid,
                 )
+                if fid in _forklift_cache:
+                    _forklift_cache[fid]['status'] = resume_status
                 await conn.execute(
                     "UPDATE tasks SET status='in-progress'::task_status, updated_at=NOW() WHERE id=$1",
                     tid,
@@ -824,6 +877,8 @@ async def _recover_sensors(conn: asyncpg.Connection) -> list[dict]:
                     "UPDATE forklifts SET status='idle'::forklift_status, last_updated=NOW() WHERE id=$1",
                     fid,
                 )
+                if fid in _forklift_cache:
+                    _forklift_cache[fid]['status'] = 'idle'
                 await conn.execute(
                     "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
                     'forklift_status_change',
@@ -869,6 +924,8 @@ async def _inject_sensor_fault(conn: asyncpg.Connection) -> list[dict]:
             "UPDATE forklifts SET status='error'::forklift_status, last_updated=NOW() WHERE id=$1",
             fid,
         )
+        if fid in _forklift_cache:
+            _forklift_cache[fid]['status'] = 'error'
         await conn.execute(
             "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
             'sensor_disconnect', {'forklift_id': fid, 'reason': 'sensor_disconnect'},

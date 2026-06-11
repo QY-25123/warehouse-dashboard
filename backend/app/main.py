@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.database import create_pool
 from app.ws_manager import manager as ws_manager
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Warehouse Dashboard API", version="1.0.0", lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 _cors_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
 _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
