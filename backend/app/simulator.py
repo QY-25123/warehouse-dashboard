@@ -75,6 +75,11 @@ _last_broadcast_pos: dict[int, tuple[float, float]] = {}
 # Populated on the first tick from DB; kept in sync on every status/position change.
 _forklift_cache: dict[int, dict[str, Any]] = {}
 
+# In-memory in-progress task details — eliminates SELECT FROM tasks every tick.
+# Added on assignment, removed on completion; delayed tasks are kept for resumption.
+_task_cache: dict[int, dict[str, Any]] = {}
+_task_cache_ready: bool = False  # separate flag — cache may be empty at startup
+
 # Forklift statuses that indicate an active task is being executed
 _ACTIVE_STATUSES: frozenset[str] = frozenset({'moving_empty', 'moving_loaded', 'loading'})
 
@@ -167,6 +172,26 @@ async def _init_forklift_cache(conn: asyncpg.Connection) -> None:
     logger.info("Forklift cache initialised: %d forklifts", len(_forklift_cache))
 
 
+async def _init_task_cache(conn: asyncpg.Connection) -> None:
+    """Populate _task_cache from DB on the first tick. No-op afterwards."""
+    global _task_cache_ready
+    if _task_cache_ready:
+        return
+    rows = await conn.fetch(
+        "SELECT id, type::text AS type, forklift_id, "
+        "       origin_zone, destination_zone, inventory_item_id "
+        "FROM tasks WHERE status IN ('in-progress', 'delayed') AND forklift_id IS NOT NULL"
+    )
+    for r in rows:
+        _task_cache[r['id']] = {
+            'id': r['id'], 'type': r['type'], 'forklift_id': r['forklift_id'],
+            'origin_zone': r['origin_zone'], 'destination_zone': r['destination_zone'],
+            'inventory_item_id': r['inventory_item_id'],
+        }
+    _task_cache_ready = True
+    logger.info("Task cache initialised: %d in-progress/delayed tasks", len(_task_cache))
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 async def run(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
@@ -185,6 +210,7 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
     tick_start = datetime.now(timezone.utc)
     async with pool.acquire() as conn:
         await _init_forklift_cache(conn)
+        await _init_task_cache(conn)
         if _tick_count % 10 == 0:
             msgs += await _create_tasks(conn)
         msgs += await _assign_tasks(conn)
@@ -192,7 +218,8 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
         msgs += await _recover_sensors(conn)
         if _tick_count % 30 == 0:
             msgs += await _inject_sensor_fault(conn)
-        msgs += await _check_alerts(conn)
+        if _tick_count % 10 == 0:
+            msgs += await _check_alerts(conn)
         if _tick_count % 300 == 0:
             await conn.execute(
                 "DELETE FROM events WHERE timestamp < NOW() - INTERVAL '2 hours'"
@@ -438,6 +465,12 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
                 fid,
             )
             _forklift_cache[fid]['status'] = 'moving_empty'
+            _task_cache[tid] = {
+                'id': tid, 'type': t_type, 'forklift_id': fid,
+                'origin_zone': task['origin_zone'],
+                'destination_zone': task['destination_zone'],
+                'inventory_item_id': task['inventory_item_id'],
+            }
             await conn.execute(
                 "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
                 'task_assigned',
@@ -474,21 +507,11 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
 
 async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
     msgs: list[dict] = []
-    try:
-        task_rows = await conn.fetch(
-            "SELECT id, type::text AS type, forklift_id, "
-            "       origin_zone, destination_zone, inventory_item_id "
-            "FROM tasks WHERE status = 'in-progress' AND forklift_id IS NOT NULL"
-        )
-    except Exception as exc:
-        logger.warning("Fetch in-progress tasks failed: %s", exc)
-        return msgs
-
-    # Filter in Python using the in-memory cache — no JOIN with forklifts needed
+    # Both forklift and task state are in memory — no DB query needed at all
     rows = [
-        r for r in task_rows
-        if r['forklift_id'] in _forklift_cache
-        and _forklift_cache[r['forklift_id']]['status'] in _ACTIVE_STATUSES
+        details for details in _task_cache.values()
+        if details['forklift_id'] in _forklift_cache
+        and _forklift_cache[details['forklift_id']]['status'] in _ACTIVE_STATUSES
     ]
 
     pending_pos: list[tuple[int, float, float]] = []  # (fid, new_x, new_y) — batch UPDATE at end
@@ -655,6 +678,7 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                     continue
                 fc['status'] = 'idle'
                 _task_state.pop(tid, None)
+                _task_cache.pop(tid, None)
                 _last_broadcast_pos.pop(fid, None)
                 msgs.append({
                     'type': 'task_update',
