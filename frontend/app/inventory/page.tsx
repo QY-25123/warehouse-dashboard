@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import type { InventoryItem } from '@/lib/types';
 import { InventoryTable } from '@/components/InventoryTable';
 
@@ -6,13 +7,16 @@ export const metadata: Metadata = {
   title: 'Inventory | Warehouse Dashboard',
 };
 
-// Use the internal Docker service name so SSR works inside the container.
 const API_INTERNAL = process.env.API_INTERNAL_URL ?? 'http://backend:8000';
 
 export default async function InventoryPage() {
+  const token = cookies().get('sb-access-token')?.value;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   let initialItems: InventoryItem[] = [];
   try {
-    initialItems = await fetch(`${API_INTERNAL}/inventory`).then((r) => r.json()) as InventoryItem[];
+    initialItems = await fetch(`${API_INTERNAL}/inventory`, { headers }).then((r) => r.json()) as InventoryItem[];
   } catch {
     // backend offline at render time
   }

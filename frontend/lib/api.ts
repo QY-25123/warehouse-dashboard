@@ -8,6 +8,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 async function get<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
+  token?: string,
 ): Promise<T> {
   const url = new URL(`${BASE}${path}`);
   if (params) {
@@ -15,7 +16,9 @@ async function get<T>(
       if (value !== undefined) url.searchParams.set(key, String(value));
     }
   }
-  const res = await fetch(url.toString(), { cache: 'no-store' });
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url.toString(), { cache: 'no-store', headers });
   if (!res.ok) throw new Error(`API ${res.status} – ${path}`);
   return res.json() as Promise<T>;
 }
@@ -41,45 +44,47 @@ export interface EventFilters {
 
 export const api = {
   forklifts: {
-    list: () =>
-      get<Forklift[]>('/forklifts'),
+    list: (token?: string) =>
+      get<Forklift[]>('/forklifts', undefined, token),
   },
 
   tasks: {
-    list: (filters?: TaskFilters) =>
-      get<Task[]>('/tasks', filters as Record<string, string | undefined>),
+    list: (filters?: TaskFilters, token?: string) =>
+      get<Task[]>('/tasks', filters as Record<string, string | undefined>, token),
   },
 
   inventory: {
-    list: (zone?: string) =>
-      get<InventoryItem[]>('/inventory', zone ? { zone } : undefined),
+    list: (zone?: string, token?: string) =>
+      get<InventoryItem[]>('/inventory', zone ? { zone } : undefined, token),
 
-    getById: (id: number) =>
-      get<InventoryItem>(`/inventory/${id}`),
+    getById: (id: number, token?: string) =>
+      get<InventoryItem>(`/inventory/${id}`, undefined, token),
 
-    getTasks: (id: number) =>
-      get<InventoryItemTask[]>(`/inventory/${id}/tasks`),
+    getTasks: (id: number, token?: string) =>
+      get<InventoryItemTask[]>(`/inventory/${id}/tasks`, undefined, token),
 
-    getHistory: (id: number) =>
-      get<InventoryEvent[]>(`/inventory/${id}/history`),
+    getHistory: (id: number, token?: string) =>
+      get<InventoryEvent[]>(`/inventory/${id}/history`, undefined, token),
   },
 
   alerts: {
-    list: (filters?: AlertFilters) =>
-      get<Alert[]>('/alerts', filters as Record<string, string | boolean | undefined>),
+    list: (filters?: AlertFilters, token?: string) =>
+      get<Alert[]>('/alerts', filters as Record<string, string | boolean | undefined>, token),
 
-    resolve: async (id: number): Promise<Alert> => {
-      const res = await fetch(`${BASE}/alerts/${id}`, { method: 'PATCH' });
+    resolve: async (id: number, token?: string): Promise<Alert> => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/alerts/${id}`, { method: 'PATCH', headers });
       if (!res.ok) throw new Error(`API ${res.status} – PATCH /alerts/${id}`);
       return res.json() as Promise<Alert>;
     },
   },
 
   events: {
-    list: (filters?: EventFilters) =>
-      get<Event[]>('/events', filters as Record<string, string | number | undefined>),
+    list: (filters?: EventFilters, token?: string) =>
+      get<Event[]>('/events', filters as Record<string, string | number | undefined>, token),
 
-    heatmap: (limit?: number) =>
-      get<Record<string, number>>('/events/heatmap', limit ? { limit } : undefined),
+    heatmap: (limit?: number, token?: string) =>
+      get<Record<string, number>>('/events/heatmap', limit ? { limit } : undefined, token),
   },
 } as const;

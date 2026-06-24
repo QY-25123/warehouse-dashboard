@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import type { Alert } from '@/lib/types';
 import { AlertPanel } from '@/components/AlertPanel';
 
@@ -6,14 +7,16 @@ export const metadata: Metadata = {
   title: 'Alert Panel | Warehouse Dashboard',
 };
 
-// Use the internal Docker service name so SSR works inside the container.
 const API_INTERNAL = process.env.API_INTERNAL_URL ?? 'http://backend:8000';
 
 export default async function AlertsPage() {
-  // Fetch all alerts (including resolved) so the client can filter locally.
+  const token = cookies().get('sb-access-token')?.value;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   let initialAlerts: Alert[] = [];
   try {
-    initialAlerts = await fetch(`${API_INTERNAL}/alerts?include_resolved=true`).then((r) => r.json()) as Alert[];
+    initialAlerts = await fetch(`${API_INTERNAL}/alerts?include_resolved=true`, { headers }).then((r) => r.json()) as Alert[];
   } catch {
     // backend offline at render time
   }

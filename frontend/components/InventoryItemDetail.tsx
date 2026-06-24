@@ -6,6 +6,7 @@ import type {
   InventoryItem, InventoryItemTask, InventoryEvent, WsMessage,
 } from '@/lib/types';
 import { api } from '@/lib/api';
+import { getClientToken } from '@/lib/client-auth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Props {
@@ -64,15 +65,17 @@ export function InventoryItemDetail({ initialItem, initialTasks, initialHistory 
   // Client-side fetch in case SSR was offline.
   useEffect(() => {
     const id = initialItem.id;
-    if (!initialItem.item_name) {
-      api.inventory.getById(id).then(setItem).catch(() => {});
-    }
-    if (!initialTasks.length) {
-      api.inventory.getTasks(id).then(setTasks).catch(() => {});
-    }
-    if (!initialHistory.length) {
-      api.inventory.getHistory(id).then(setHistory).catch(() => {});
-    }
+    getClientToken().then((token) => {
+      if (!initialItem.item_name) {
+        api.inventory.getById(id, token).then(setItem).catch(() => {});
+      }
+      if (!initialTasks.length) {
+        api.inventory.getTasks(id, token).then(setTasks).catch(() => {});
+      }
+      if (!initialHistory.length) {
+        api.inventory.getHistory(id, token).then(setHistory).catch(() => {});
+      }
+    });
   }, [initialItem.id, initialItem.item_name, initialTasks.length, initialHistory.length]);
 
   const onMessage = useCallback((msg: WsMessage) => {
@@ -84,8 +87,9 @@ export function InventoryItemDetail({ initialItem, initialTasks, initialHistory 
         location_zone: msg.payload.location_zone,
         last_updated:  new Date().toISOString(),
       }));
-      // Refresh history in background so the timeline stays current.
-      api.inventory.getHistory(item.id).then(setHistory).catch(() => {});
+      getClientToken().then((token) =>
+        api.inventory.getHistory(item.id, token).then(setHistory).catch(() => {})
+      );
     }
 
     // Prepend newly created tasks linked to this item.

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { InventoryItem, WsMessage } from '@/lib/types';
 import { api } from '@/lib/api';
+import { getClientToken } from '@/lib/client-auth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Props {
@@ -26,9 +27,11 @@ export function InventoryTable({ initialItems }: Props) {
   // Client-side fetch so the table is populated even when the SSR fetch failed
   // (e.g. backend unreachable from inside the Next.js Docker container).
   useEffect(() => {
-    api.inventory.list()
-      .then((data) => setItems(data))
-      .catch(() => {});
+    getClientToken().then((token) =>
+      api.inventory.list(undefined, token)
+        .then((data) => setItems(data))
+        .catch(() => {})
+    );
   }, []);
 
   const onMessage = useCallback((msg: WsMessage) => {

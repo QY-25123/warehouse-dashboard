@@ -1,6 +1,7 @@
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+from app.auth import get_current_user
 from app.dependencies import get_pool
 from app.models import AlertResponse
 
@@ -14,6 +15,7 @@ async def list_alerts(
     severity: Optional[str] = Query(None, description="Filter by severity: info, warning, critical"),
     include_resolved: bool = Query(False, description="Include resolved alerts (default: active only)"),
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     conditions: list[str] = []
     params: list = []
@@ -43,6 +45,7 @@ async def list_alerts(
 async def resolve_alert(
     alert_id: int,
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     async with pool.acquire() as conn:
         row = await conn.fetchrow(

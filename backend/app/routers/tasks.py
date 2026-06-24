@@ -1,6 +1,7 @@
 import asyncpg
 from fastapi import APIRouter, Depends, Query
 from typing import Optional
+from app.auth import get_current_user
 from app.dependencies import get_pool
 from app.models import TaskResponse
 
@@ -15,6 +16,7 @@ async def list_tasks(
     status: Optional[str] = Query(None, description="Filter by status"),
     type:   Optional[str] = Query(None, description="Filter by task type"),
     pool:   asyncpg.Pool  = Depends(get_pool),
+    _user:  dict           = Depends(get_current_user),
 ):
     conditions: list[str] = []
     params: list[str] = []

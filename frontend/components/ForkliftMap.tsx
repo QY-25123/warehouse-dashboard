@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import type { Forklift, Task, WsMessage } from '@/lib/types';
 import { api } from '@/lib/api';
+import { getClientToken } from '@/lib/client-auth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Props {
@@ -448,15 +449,19 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
 
   // Initial REST fetches
   useEffect(() => {
-    api.forklifts.list()
-      .then((data) => setForklifts(new Map(data.map((f) => [f.id, f]))))
-      .catch(() => {});
+    getClientToken().then((token) =>
+      api.forklifts.list(token)
+        .then((data) => setForklifts(new Map(data.map((f) => [f.id, f]))))
+        .catch(() => {})
+    );
   }, []);
 
   useEffect(() => {
-    api.tasks.list({ status: 'in-progress' })
-      .then((tasks) => setActiveTasks(new Map(tasks.map((t) => [t.id, t]))))
-      .catch(() => {});
+    getClientToken().then((token) =>
+      api.tasks.list({ status: 'in-progress' }, token)
+        .then((tasks) => setActiveTasks(new Map(tasks.map((t) => [t.id, t]))))
+        .catch(() => {})
+    );
   }, []);
 
   // Notify parent of fleet changes

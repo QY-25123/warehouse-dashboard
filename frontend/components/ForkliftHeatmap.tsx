@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type CSSProperties } from 'react';
 import { api } from '@/lib/api';
+import { getClientToken } from '@/lib/client-auth';
 
 const REFRESH_MS = 30_000;
 
@@ -63,7 +64,8 @@ export function ForkliftHeatmap() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await api.events.heatmap(500);
+        const token = await getClientToken();
+        const data = await api.events.heatmap(500, token);
         const map = new Map(Object.entries(data));
         setCounts(map);
         setTotal(Object.values(data).reduce((a, b) => a + b, 0));

@@ -83,3 +83,67 @@ CREATE INDEX IF NOT EXISTS idx_events_timestamp     ON events(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_type          ON events(type);
 CREATE INDEX IF NOT EXISTS idx_alerts_resolved      ON alerts(resolved);
 CREATE INDEX IF NOT EXISTS idx_alerts_severity      ON alerts(severity);
+
+-- ── Auth: user profiles ──────────────────────────────────────────────────────
+
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('admin', 'operator');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS profiles (
+    id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email        TEXT         NOT NULL,
+    role         user_role    NOT NULL DEFAULT 'operator',
+    display_name TEXT,
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+
+-- Auto-create a profile row when Supabase Auth inserts a new user.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, role, display_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE((NEW.raw_app_meta_data->>'role')::user_role, 'operator'),
+    COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1))
+  );
+  UPDATE auth.users
+  SET raw_app_meta_data = raw_app_meta_data || jsonb_build_object(
+    'role', COALESCE(NEW.raw_app_meta_data->>'role', 'operator')
+  )
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Keep JWT claims in sync when an admin changes a user's role.
+CREATE OR REPLACE FUNCTION public.sync_role_to_claims()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  UPDATE auth.users
+  SET raw_app_meta_data = raw_app_meta_data || jsonb_build_object('role', NEW.role::text)
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_profile_role_updated ON profiles;
+CREATE TRIGGER on_profile_role_updated
+  AFTER UPDATE OF role ON profiles
+  FOR EACH ROW EXECUTE FUNCTION public.sync_role_to_claims();

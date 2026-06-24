@@ -1,6 +1,7 @@
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+from app.auth import get_current_user
 from app.dependencies import get_pool
 from app.models import InventoryResponse, InventoryTaskResponse, EventResponse
 
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/inventory", tags=["inventory"])
 async def list_inventory(
     zone: Optional[str] = Query(None, description="Filter by location zone (e.g. A1, B3)"),
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     if zone:
         async with pool.acquire() as conn:
@@ -32,6 +34,7 @@ async def list_inventory(
 async def get_inventory_item(
     item_id: int,
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -48,6 +51,7 @@ async def get_inventory_item(
 async def get_item_tasks(
     item_id: int,
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -68,6 +72,7 @@ async def get_item_tasks(
 async def get_item_history(
     item_id: int,
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     async with pool.acquire() as conn:
         rows = await conn.fetch(

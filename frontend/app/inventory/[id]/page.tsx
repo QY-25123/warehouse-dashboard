@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { InventoryItem, InventoryItemTask, InventoryEvent } from '@/lib/types';
 import { InventoryItemDetail } from '@/components/InventoryItemDetail';
@@ -17,12 +18,16 @@ export default async function InventoryItemPage({ params }: Props) {
   const id = parseInt(params.id, 10);
   if (isNaN(id)) notFound();
 
+  const token = cookies().get('sb-access-token')?.value;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   let item: InventoryItem | null = null;
   let tasks: InventoryItemTask[] = [];
   let history: InventoryEvent[] = [];
 
   try {
-    const res = await fetch(`${API_INTERNAL}/inventory/${id}`, { cache: 'no-store' });
+    const res = await fetch(`${API_INTERNAL}/inventory/${id}`, { cache: 'no-store', headers });
     if (res.status === 404) notFound();
     if (res.ok) item = await res.json();
   } catch {
@@ -30,12 +35,12 @@ export default async function InventoryItemPage({ params }: Props) {
   }
 
   try {
-    tasks = await fetch(`${API_INTERNAL}/inventory/${id}/tasks`)
+    tasks = await fetch(`${API_INTERNAL}/inventory/${id}/tasks`, { headers })
       .then((r) => (r.ok ? r.json() : []));
   } catch { /* offline */ }
 
   try {
-    history = await fetch(`${API_INTERNAL}/inventory/${id}/history`)
+    history = await fetch(`${API_INTERNAL}/inventory/${id}/history`, { headers })
       .then((r) => (r.ok ? r.json() : []));
   } catch { /* offline */ }
 

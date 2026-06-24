@@ -4,6 +4,7 @@ from typing import Any, Optional
 import asyncpg
 from fastapi import APIRouter, Depends, Query
 
+from app.auth import get_current_user
 from app.dependencies import get_pool
 from app.models import EventResponse
 
@@ -16,6 +17,7 @@ async def list_events(
     limit: int = Query(100, ge=1, le=500, description="Number of events to return (max 500)"),
     since: Optional[str] = Query(None, description="ISO timestamp — return only events after this time"),
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     conditions: list[str] = []
     params: list[Any] = []
@@ -49,6 +51,7 @@ async def list_events(
 async def events_heatmap(
     limit: int = Query(500, ge=1, le=5000, description="Number of recent zone_entry events to aggregate"),
     pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
 ):
     """Return per-zone visit counts aggregated server-side from the most recent zone_entry events."""
     async with pool.acquire() as conn:

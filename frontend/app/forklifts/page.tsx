@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { api } from '@/lib/api';
 import type { Forklift } from '@/lib/types';
 import { ForkliftTabs } from '@/components/ForkliftTabs';
@@ -8,9 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default async function ForkliftsPage() {
+  const token = cookies().get('sb-access-token')?.value;
   let initialForklifts: Forklift[] = [];
   try {
-    initialForklifts = await api.forklifts.list();
+    initialForklifts = await api.forklifts.list(token);
   } catch {
     // backend offline at render time — WS will sync state once connected
   }

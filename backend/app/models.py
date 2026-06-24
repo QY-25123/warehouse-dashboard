@@ -69,3 +69,20 @@ class EventResponse(BaseModel):
         if isinstance(v, str):
             return json.loads(v)
         return v
+
+
+# ── Auth / Admin models ──────────────────────────────────────────────────────
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    role: str
+    display_name: Optional[str]
+    created_at: datetime
+
+
+class CreateUserRequest(BaseModel):
+    email: str
+    password: str
+    role: str = "operator"
+    display_name: Optional[str] = None

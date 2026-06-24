@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Alert, WsMessage } from '@/lib/types';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { api } from '@/lib/api';
+import { getClientToken } from '@/lib/client-auth';
 
 interface Props {
   initialAlerts: Alert[];
@@ -46,12 +47,12 @@ export function AlertPanel({ initialAlerts }: Props) {
   const [showResolved, setShowResolved] = useState(false);
   const [resolving, setResolving] = useState<Set<number>>(new Set());
 
-  // Client-side fetch so the panel is populated even when the SSR fetch failed
-  // (e.g. backend unreachable from inside the Next.js Docker container).
   useEffect(() => {
-    api.alerts.list({ include_resolved: true })
-      .then((data) => setAlerts(data))
-      .catch(() => {});
+    getClientToken().then((token) =>
+      api.alerts.list({ include_resolved: true }, token)
+        .then((data) => setAlerts(data))
+        .catch(() => {})
+    );
   }, []);
 
   // Keep a ref so onMessage can read the latest filter without being a dep
@@ -70,10 +71,12 @@ export function AlertPanel({ initialAlerts }: Props) {
       created_at: new Date().toISOString(),
     };
     setAlerts((prev) => [synthetic, ...prev]);
-    api.alerts
-      .list({ include_resolved: showResolvedRef.current })
-      .then((fresh) => setAlerts(fresh))
-      .catch(() => {/* keep synthetic */});
+    getClientToken().then((token) =>
+      api.alerts
+        .list({ include_resolved: showResolvedRef.current }, token)
+        .then((fresh) => setAlerts(fresh))
+        .catch(() => {/* keep synthetic */})
+    );
   }, []);
 
   const { connected } = useWebSocket({ onMessage });
@@ -82,7 +85,8 @@ export function AlertPanel({ initialAlerts }: Props) {
     if (id <= 0) return;
     setResolving((prev) => new Set(prev).add(id));
     try {
-      await api.alerts.resolve(id);
+      const token = await getClientToken();
+      await api.alerts.resolve(id, token);
       setAlerts((prev) =>
         prev.map((a) => (a.id === id ? { ...a, resolved: true } : a))
       );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import type { WsMessage } from '@/lib/types';
 
 interface UseWebSocketOptions {
@@ -17,8 +18,6 @@ export function useWebSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Keep callback current without putting it in the effect dep array
-  // (avoids closing/reopening the socket on every parent render).
   const callbackRef = useRef(onMessage);
   callbackRef.current = onMessage;
 
@@ -27,11 +26,18 @@ export function useWebSocket({
       /^http/,
       'ws',
     );
-    const url = `${base}/ws/events`;
     let cancelled = false;
 
-    function open() {
+    async function open() {
       if (cancelled) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        timerRef.current = setTimeout(open, reconnectDelay);
+        return;
+      }
+
+      const url = `${base}/ws/events?token=${encodeURIComponent(session.access_token)}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
