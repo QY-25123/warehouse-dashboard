@@ -2,23 +2,46 @@ import os
 from typing import Optional
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from jwt import PyJWKClient
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 _bearer = HTTPBearer()
+_SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+_JWKS_URL = f"{_SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 _JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
-_ALGORITHM = "HS256"
 _AUDIENCE = "authenticated"
+
+_jwks_client: PyJWKClient | None = None
+
+
+def _get_jwks_client() -> PyJWKClient:
+    global _jwks_client
+    if _jwks_client is None:
+        _jwks_client = PyJWKClient(_JWKS_URL, cache_keys=True)
+    return _jwks_client
 
 
 def _decode(token: str) -> dict:
     try:
-        return jwt.decode(
-            token,
-            _JWT_SECRET,
-            algorithms=[_ALGORITHM],
-            audience=_AUDIENCE,
-        )
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+
+        if alg.startswith("ES") or alg.startswith("RS"):
+            signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
+            return jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=[alg],
+                audience=_AUDIENCE,
+            )
+        else:
+            return jwt.decode(
+                token,
+                _JWT_SECRET,
+                algorithms=["HS256"],
+                audience=_AUDIENCE,
+            )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token expired")
     except jwt.InvalidTokenError:
