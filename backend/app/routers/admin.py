@@ -15,7 +15,7 @@ async def list_users(
     _user: dict = Depends(require_admin),
 ):
     rows = await pool.fetch(
-        "SELECT id, email, role::text, display_name, created_at "
+        "SELECT id::text, email, role::text, display_name, created_at "
         "FROM profiles ORDER BY created_at"
     )
     return [dict(r) for r in rows]
@@ -43,7 +43,7 @@ async def create_user(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
 
     row = await pool.fetchrow(
-        "SELECT id, email, role::text, display_name, created_at "
+        "SELECT id::text, email, role::text, display_name, created_at "
         "FROM profiles WHERE id = $1",
         res.user.id,
     )
