@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth import get_current_user, require_admin
 from app.dependencies import get_pool
 from app.models import CreateUserRequest, UserProfile
-from app.supabase_admin import get_supabase_admin
+from app.supabase_admin import create_auth_user, delete_auth_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -30,22 +30,17 @@ async def create_user(
     if body.role not in ("admin", "operator"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Role must be admin or operator")
 
-    sb = get_supabase_admin()
+    display_name = body.display_name or body.email.split("@")[0]
     try:
-        res = sb.auth.admin.create_user({
-            "email": body.email,
-            "password": body.password,
-            "email_confirm": True,
-            "app_metadata": {"role": body.role},
-            "user_metadata": {"display_name": body.display_name or body.email.split("@")[0]},
-        })
+        data = await create_auth_user(body.email, body.password, body.role, display_name)
     except Exception as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
 
+    user_id = data.get("id")
     row = await pool.fetchrow(
         "SELECT id::text, email, role::text, display_name, created_at "
         "FROM profiles WHERE id = $1",
-        res.user.id,
+        user_id,
     )
     if not row:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Profile not created by trigger")
@@ -57,8 +52,7 @@ async def delete_user(
     user_id: str,
     _user: dict = Depends(require_admin),
 ):
-    sb = get_supabase_admin()
     try:
-        sb.auth.admin.delete_user(user_id)
+        await delete_auth_user(user_id)
     except Exception as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
