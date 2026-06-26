@@ -95,7 +95,6 @@ export function AdminUserPanel() {
       );
       setFormEmail('');
       setFormPassword('');
-      setFormRole('operator');
       setFormName('');
       setShowForm(false);
       await loadUsers();
