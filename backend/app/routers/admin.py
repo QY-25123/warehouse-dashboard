@@ -1,7 +1,7 @@
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.auth import require_admin
+from app.auth import get_current_user, require_admin
 from app.dependencies import get_pool
 from app.models import CreateUserRequest, UserProfile
 from app.supabase_admin import get_supabase_admin
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("/users", response_model=list[UserProfile])
 async def list_users(
     pool: asyncpg.Pool = Depends(get_pool),
-    _user: dict = Depends(require_admin),
+    _user: dict = Depends(get_current_user),
 ):
     rows = await pool.fetch(
         "SELECT id::text, email, role::text, display_name, created_at "

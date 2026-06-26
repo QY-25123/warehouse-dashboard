@@ -38,7 +38,7 @@ export function Navigation() {
               {label}
             </Link>
           ))}
-          {role === 'admin' && (
+          {(role === 'admin' || role === 'operator') && (
             <Link
               href="/admin/users"
               className={

@@ -46,10 +46,11 @@ export function AdminUserPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const isAdmin = role === 'admin';
+
   const [showForm, setShowForm] = useState(false);
   const [formEmail, setFormEmail] = useState('');
   const [formPassword, setFormPassword] = useState('');
-  const [formRole, setFormRole] = useState<'operator' | 'admin'>('operator');
   const [formName, setFormName] = useState('');
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -86,7 +87,7 @@ export function AdminUserPanel() {
           body: JSON.stringify({
             email: formEmail,
             password: formPassword,
-            role: formRole,
+            role: 'operator',
             display_name: formName || undefined,
           }),
         },
@@ -123,14 +124,6 @@ export function AdminUserPanel() {
     }
   }
 
-  if (role !== 'admin') {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-12 text-center text-sm text-red-600">
-        You do not have permission to view this page.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5">
       {error && (
@@ -141,15 +134,17 @@ export function AdminUserPanel() {
         <p className="text-sm text-gray-500">
           {loading ? 'Loading...' : `${users.length} user${users.length !== 1 ? 's' : ''}`}
         </p>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
-        >
-          {showForm ? 'Cancel' : 'Create User'}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+          >
+            {showForm ? 'Cancel' : 'Create User'}
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {isAdmin && showForm && (
         <form
           onSubmit={handleCreate}
           className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-4"
@@ -185,17 +180,6 @@ export function AdminUserPanel() {
                 placeholder="Optional"
                 className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Role</label>
-              <select
-                value={formRole}
-                onChange={(e) => setFormRole(e.target.value as 'operator' | 'admin')}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="operator">Operator</option>
-                <option value="admin">Admin</option>
-              </select>
             </div>
           </div>
 
@@ -237,13 +221,15 @@ export function AdminUserPanel() {
                   </td>
                   <td className="px-4 py-3 text-gray-500">{fmtDate(u.created_at)}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(u.id)}
-                      disabled={deleting.has(u.id)}
-                      className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
-                    >
-                      {deleting.has(u.id) ? 'Deleting...' : 'Delete'}
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        disabled={deleting.has(u.id)}
+                        className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
+                      >
+                        {deleting.has(u.id) ? 'Deleting...' : 'Delete'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
