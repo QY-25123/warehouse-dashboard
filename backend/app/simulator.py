@@ -27,7 +27,7 @@ Sensor fault (every 30 ticks):
 Five alert types:
   1. Forklift inactivity   — idle/error, no task, 5+ ticks    → warning
   2. Route congestion      — 3+ forklifts same zone           → warning
-  3. Delayed task          — in-progress 20+ ticks            → warning
+  3. Delayed task          — in-progress 40+ ticks            → warning
   4. Sensor disconnect     — injected fault                   → critical
   5. Inventory mismatch    — qty reaches 0 after outbound     → warning
 """
@@ -40,6 +40,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 import asyncpg
+import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 from app.ws_manager import ConnectionManager
 
@@ -404,12 +406,27 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
     except Exception as exc:
         logger.warning("Fetch for assignment failed: %s", exc)
         return msgs
-    idle = sorted(
-        [f for f in _forklift_cache.values() if f['status'] == 'idle'],
-        key=lambda f: f['id'],
-    )
+    idle = [f for f in _forklift_cache.values() if f['status'] == 'idle']
 
-    for task, fork in zip(pending, idle):
+    # Hungarian algorithm: build a cost matrix [forklifts × tasks] where each
+    # cell is the Euclidean distance from the forklift's current position to the
+    # task's origin zone, then find the globally optimal assignment that minimises
+    # total travel distance across all pairs simultaneously.
+    n_forks, n_tasks = len(idle), len(pending)
+    pairs: list[tuple[dict, dict]] = []
+
+    if n_forks > 0 and n_tasks > 0:
+        cost = np.zeros((n_forks, n_tasks))
+        for fi, fork in enumerate(idle):
+            for ti, task in enumerate(pending):
+                zx, zy = _ZONE_COORDS.get(task['origin_zone'], (50.0, 50.0))
+                cost[fi, ti] = ((fork['x'] - zx) ** 2 + (fork['y'] - zy) ** 2) ** 0.5
+
+        fork_indices, task_indices = linear_sum_assignment(cost)
+        for fi, ti in zip(fork_indices, task_indices):
+            pairs.append((pending[ti], idle[fi]))
+
+    for task, fork in pairs:
         tid, fid = task['id'], fork['id']
         t_type = task['type']
 
@@ -1099,9 +1116,9 @@ async def _check_alerts(conn: asyncpg.Connection) -> list[dict]:
         except Exception as exc:
             logger.warning("Congestion alert for zone %s failed: %s", zone, exc)
 
-    # ── Alert 3: Slow task (in-progress 20+ ticks, still running) ───────────
+    # ── Alert 3: Slow task (in-progress 40+ ticks, still running) ───────────
     for tid, state in list(_task_state.items()):
-        if _tick_count - state.get('start_tick', _tick_count) < 20:
+        if _tick_count - state.get('start_tick', _tick_count) < 40:
             continue
         try:
             task_row = await conn.fetchrow(
