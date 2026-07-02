@@ -243,8 +243,7 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
         msgs += await _recover_sensors(conn)
         if _tick_count % 30 == 0:
             msgs += await _inject_sensor_fault(conn)
-        if _tick_count % 10 == 0:
-            msgs += await _check_alerts(conn)
+        msgs += await _check_alerts(conn)
         if _tick_count % 300 == 0:
             await conn.execute(
                 "DELETE FROM events WHERE timestamp < NOW() - INTERVAL '2 hours'"
