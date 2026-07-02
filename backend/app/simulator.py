@@ -196,8 +196,14 @@ async def _init_task_cache(conn: asyncpg.Connection) -> None:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
+# Held by run() for the duration of each tick.
+# The reset endpoint acquires this before touching the DB so it always waits
+# for any in-flight tick to finish all its DB writes first.
+tick_lock = asyncio.Lock()
+
+
 def reset() -> None:
-    """Clear all in-memory state after a DB reset. Safe to call while run() is looping."""
+    """Clear all in-memory state. Must be called while tick_lock is held."""
     global _tick_count, _task_cache_ready
     _tick_count = 0
     _task_cache_ready = False
@@ -218,7 +224,8 @@ async def run(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
         await asyncio.sleep(TICK_INTERVAL)
         _tick_count += 1
         try:
-            await _tick(pool, manager)
+            async with tick_lock:
+                await _tick(pool, manager)
         except Exception as exc:
             logger.error("Simulator tick failed: %s", exc, exc_info=True)
 

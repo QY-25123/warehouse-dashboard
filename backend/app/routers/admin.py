@@ -90,17 +90,20 @@ async def reset_system(
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc))
 
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            # Drop all simulation-generated rows; serial sequences restart from 1.
-            # CASCADE covers any FK references not explicitly listed.
-            await conn.execute(
-                "TRUNCATE tasks, events, alerts, inventory, forklifts RESTART IDENTITY CASCADE"
-            )
-            # Re-seed forklifts and inventory from seed.sql.
-            await conn.execute(seed_sql)
+    # Hold the tick lock for the entire reset so no in-flight tick can write
+    # stale status back to the DB after we truncate and reseed.
+    async with simulator.tick_lock:
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # Drop all simulation-generated rows; serial sequences restart from 1.
+                # CASCADE covers any FK references not explicitly listed.
+                await conn.execute(
+                    "TRUNCATE tasks, events, alerts, inventory, forklifts RESTART IDENTITY CASCADE"
+                )
+                # Re-seed forklifts and inventory from seed.sql.
+                await conn.execute(seed_sql)
 
-    # Wipe the simulator's in-memory caches so the next tick rebuilds cleanly.
-    simulator.reset()
+        # Wipe the simulator's in-memory caches so the next tick rebuilds cleanly.
+        simulator.reset()
 
     return {"status": "ok"}
