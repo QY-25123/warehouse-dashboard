@@ -263,8 +263,7 @@ export function AdminUserPanel() {
           <h2 className="text-sm font-semibold text-red-700 mb-1">Danger Zone</h2>
           <p className="text-sm text-red-600 mb-4">
             Resets all simulation data — tasks, events, alerts, and inventory
-            quantities — back to the original seed state. The simulator restarts
-            automatically; no backend restart needed.
+            quantities — back to the original seed state.
           </p>
 
           {resetDone && (
