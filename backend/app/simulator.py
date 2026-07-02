@@ -196,6 +196,22 @@ async def _init_task_cache(conn: asyncpg.Connection) -> None:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
+def reset() -> None:
+    """Clear all in-memory state after a DB reset. Safe to call while run() is looping."""
+    global _tick_count, _task_cache_ready
+    _tick_count = 0
+    _task_cache_ready = False
+    _forklift_cache.clear()
+    _task_cache.clear()
+    _task_state.clear()
+    _sensor_fault_ticks.clear()
+    _idle_ticks.clear()
+    _forklift_zones.clear()
+    _forklift_interrupted_task.clear()
+    _last_broadcast_pos.clear()
+    logger.info("Simulator state reset — caches will repopulate on next tick")
+
+
 async def run(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
     global _tick_count
     while True:
