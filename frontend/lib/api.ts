@@ -1,6 +1,7 @@
 import type {
   Forklift, Task, InventoryItem, InventoryItemTask, InventoryEvent,
   Alert, Event,
+  AnalyticsSummary, ThroughputBucket, ForkliftTaskCount,
 } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -86,5 +87,16 @@ export const api = {
 
     heatmap: (limit?: number, token?: string) =>
       get<Record<string, number>>('/events/heatmap', limit ? { limit } : undefined, token),
+  },
+
+  analytics: {
+    summary: (token?: string) =>
+      get<AnalyticsSummary>('/analytics/summary', undefined, token),
+
+    throughput: (token?: string) =>
+      get<ThroughputBucket[]>('/analytics/throughput', undefined, token),
+
+    forkliftTasks: (token?: string) =>
+      get<ForkliftTaskCount[]>('/analytics/forklift-tasks', undefined, token),
   },
 } as const;

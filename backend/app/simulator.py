@@ -27,7 +27,7 @@ Sensor fault (every 30 ticks):
 Five alert types:
   1. Forklift inactivity   — idle/error, no task, 5+ ticks    → warning
   2. Route congestion      — 3+ forklifts same zone           → warning
-  3. Delayed task          — in-progress 40+ ticks            → warning
+  3. Delayed task          — in-progress 90+ ticks            → warning
   4. Sensor disconnect     — injected fault                   → critical
   5. Inventory mismatch    — qty reaches 0 after outbound     → warning
 """
@@ -1116,9 +1116,9 @@ async def _check_alerts(conn: asyncpg.Connection) -> list[dict]:
         except Exception as exc:
             logger.warning("Congestion alert for zone %s failed: %s", zone, exc)
 
-    # ── Alert 3: Slow task (in-progress 40+ ticks, still running) ───────────
+    # ── Alert 3: Slow task (in-progress 90+ ticks, still running) ───────────
     for tid, state in list(_task_state.items()):
-        if _tick_count - state.get('start_tick', _tick_count) < 40:
+        if _tick_count - state.get('start_tick', _tick_count) < 90:
             continue
         try:
             task_row = await conn.fetchrow(

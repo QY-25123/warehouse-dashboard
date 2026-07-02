@@ -11,7 +11,7 @@ from app.database import create_pool
 from app.ws_manager import manager as ws_manager
 from app import simulator
 from app.routers import forklifts, tasks, inventory, alerts, events
-from app.routers import ws, admin
+from app.routers import ws, admin, analytics
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +54,7 @@ app.include_router(alerts.router)
 app.include_router(events.router)
 app.include_router(ws.router)
 app.include_router(admin.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health")

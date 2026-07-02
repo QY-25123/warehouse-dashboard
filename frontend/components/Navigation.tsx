@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const LINKS = [
-  { href: '/forklifts',  label: 'Forklifts'  },
-  { href: '/tasks',      label: 'Tasks'      },
-  { href: '/inventory',  label: 'Inventory'  },
-  { href: '/alerts',     label: 'Alerts'     },
-  { href: '/events',     label: 'Events'     },
+  { href: '/',           label: 'Dashboard', exact: true  },
+  { href: '/forklifts',  label: 'Forklifts', exact: false },
+  { href: '/tasks',      label: 'Tasks',     exact: false },
+  { href: '/inventory',  label: 'Inventory', exact: false },
+  { href: '/alerts',     label: 'Alerts',    exact: false },
+  { href: '/events',     label: 'Events',    exact: false },
 ] as const;
 
 export function Navigation() {
@@ -25,12 +26,12 @@ export function Navigation() {
           Warehouse Dashboard
         </span>
         <nav className="flex gap-6 text-sm font-medium">
-          {LINKS.map(({ href, label }) => (
+          {LINKS.map(({ href, label, exact }) => (
             <Link
               key={href}
               href={href}
               className={
-                pathname.startsWith(href)
+                (exact ? pathname === href : pathname.startsWith(href))
                   ? 'text-blue-400'
                   : 'text-gray-300 hover:text-white transition-colors'
               }

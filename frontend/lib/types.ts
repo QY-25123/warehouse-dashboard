@@ -120,6 +120,27 @@ export interface WsAlertPayload {
   message: string;
 }
 
+// ── Analytics types ───────────────────────────────────────────────────────────
+
+export interface AnalyticsSummary {
+  tasks_per_hour: number;
+  fleet_utilization_pct: number;
+  open_alerts: number;
+  pending_tasks: number;
+  active_tasks: number;
+}
+
+export interface ThroughputBucket {
+  bucket: string;  // ISO timestamp
+  count: number;
+}
+
+export interface ForkliftTaskCount {
+  forklift_id: number;
+  name: string;
+  tasks_completed: number;
+}
+
 export type WsMessage =
   | { type: 'batch';             messages: WsMessage[] }
   | { type: 'forklift_update';   payload: WsForkliftPayload }
