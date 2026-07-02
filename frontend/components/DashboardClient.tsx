@@ -108,7 +108,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
               x={trackX + BAR_AREA + 8}
               y={y + ROW_H / 2 + 4}
               fontSize={11} fill="#94A3B8"
-              fontVariantNumeric="tabular-nums"
+              style={{ fontVariantNumeric: 'tabular-nums' }}
             >
               {d.tasks_completed}
             </text>
