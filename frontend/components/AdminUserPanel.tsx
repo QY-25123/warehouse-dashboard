@@ -119,6 +119,7 @@ export function AdminUserPanel() {
       await apiFetch('/admin/reset', { method: 'POST' }, token);
       setResetDone(true);
       setShowResetModal(false);
+      setTimeout(() => window.location.href = '/forklifts', 1500);
     } catch (e: unknown) {
       setResetError(e instanceof Error ? e.message : 'Reset failed');
     } finally {
