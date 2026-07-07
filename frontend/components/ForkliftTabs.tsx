@@ -34,7 +34,7 @@ export function ForkliftTabs({ initialForklifts }: Props) {
     <div className="flex flex-col" style={{ color: '#F1F5F9' }}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div
-        className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-4 px-4 py-5 sm:px-6 sm:flex-row sm:items-center sm:justify-between"
         style={{ borderBottom: '1px solid #2A2D3E', background: '#1A1D27' }}
       >
         {/* Left: title */}
@@ -95,7 +95,7 @@ export function ForkliftTabs({ initialForklifts }: Props) {
       </div>
 
       {/* ── Tab toggle ──────────────────────────────────────────────────────── */}
-      <div className="px-6 pt-5">
+      <div className="px-4 pt-5 sm:px-6">
         <div
           className="flex w-fit gap-1 rounded-xl p-1"
           style={{ background: '#0F1117', border: '1px solid #2A2D3E' }}
@@ -122,7 +122,7 @@ export function ForkliftTabs({ initialForklifts }: Props) {
       </div>
 
       {/* ── Tab content ─────────────────────────────────────────────────────── */}
-      <div className="px-6 py-5">
+      <div className="px-4 py-5 sm:px-6">
         {tab === 'map' ? (
           <ForkliftMap initialForklifts={initialForklifts} onFleetChange={setLiveForklifts} />
         ) : (

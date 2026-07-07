@@ -275,15 +275,15 @@ export function InventoryItemDetail({ initialItem, initialTasks, initialHistory 
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">From</th>
                   <th className="px-4 py-3">To</th>
-                  <th className="px-4 py-3">Forklift</th>
+                  <th className="hidden sm:table-cell px-4 py-3">Forklift</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Date</th>
+                  <th className="hidden sm:table-cell px-4 py-3">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {tasks.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
                       No tasks recorded for this item.
                     </td>
                   </tr>
@@ -304,7 +304,7 @@ export function InventoryItemDetail({ initialItem, initialTasks, initialHistory 
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">
                         {t.destination_zone ?? '—'}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                      <td className="hidden sm:table-cell px-4 py-3 font-mono text-xs text-gray-500">
                         {forkliftLabel(t.forklift_name, t.forklift_id)}
                       </td>
                       <td className="px-4 py-3">
@@ -312,7 +312,7 @@ export function InventoryItemDetail({ initialItem, initialTasks, initialHistory 
                           {t.status}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
+                      <td className="hidden sm:table-cell whitespace-nowrap px-4 py-3 text-xs text-gray-400">
                         {fmtDate(t.created_at)}
                       </td>
                     </tr>

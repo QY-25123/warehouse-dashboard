@@ -219,14 +219,14 @@ export function AdminUserPanel() {
       )}
 
       {!loading && users.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
+                <th className="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-500">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Role</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Created</th>
+                <th className="hidden md:table-cell px-4 py-3 text-left font-medium text-gray-500">Created</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
@@ -234,13 +234,13 @@ export function AdminUserPanel() {
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{u.email}</td>
-                  <td className="px-4 py-3 text-gray-600">{u.display_name || '—'}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-gray-600">{u.display_name || '—'}</td>
                   <td className="px-4 py-3">
                     <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium uppercase text-gray-700">
                       {u.role}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{fmtDate(u.created_at)}</td>
+                  <td className="hidden md:table-cell px-4 py-3 text-gray-500">{fmtDate(u.created_at)}</td>
                   <td className="px-4 py-3 text-right">
                     {isAdmin && (
                       <button

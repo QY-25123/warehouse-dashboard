@@ -105,10 +105,11 @@ export function ForkliftHeatmap() {
         {lastRefresh && <span>Refreshes every 30 s · last at {lastRefresh.toLocaleTimeString()}</span>}
       </div>
 
-      <div className="flex flex-col gap-5" style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {/* SVG heatmap */}
-        <div className="min-w-0 flex-1 overflow-hidden" style={{ ...panelStyle, minWidth: 400 }}>
-          <svg viewBox="-18 -2 136 128" className="w-full" style={{ display: 'block' }}>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start">
+        {/* SVG heatmap — scrollable on small screens */}
+        <div className="min-w-0 md:flex-1" style={{ ...panelStyle, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ minWidth: 380 }}>
+          <svg viewBox="-18 -2 136 128" style={{ width: '100%', display: 'block' }}>
             {/* Outer shell */}
             <rect x={-1} y={-1} width={102} height={112} rx={2}
               fill="#141720" stroke="#2A2D3E" strokeWidth={0.4} />
@@ -196,10 +197,11 @@ export function ForkliftHeatmap() {
               );
             })()}
           </svg>
+          </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="flex flex-col gap-4" style={{ width: 260, flexShrink: 0 }}>
+        {/* Sidebar — full width on mobile, fixed 240px on md+ */}
+        <div className="w-full md:w-60 md:flex-shrink-0 flex flex-col gap-4">
           {/* Gradient legend */}
           <div style={{ ...panelStyle, padding: 16 }}>
             <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 12 }}>

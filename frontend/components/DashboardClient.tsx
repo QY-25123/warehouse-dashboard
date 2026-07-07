@@ -232,10 +232,10 @@ export function DashboardClient({
 
   return (
     <div style={{ background: '#0F1117', minHeight: '100vh', borderTop: '3px solid #3B82F6' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '28px 24px' }}>
+      <div className="mx-auto px-4 py-6 sm:px-6 sm:py-7" style={{ maxWidth: 1280 }}>
 
         {/* Page header */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', letterSpacing: '0.06em' }}>
               OPERATIONS CENTER
@@ -253,8 +253,8 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* KPI row */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+        {/* KPI row — 2 cols on mobile/tablet, 4 cols on desktop */}
+        <div className="grid grid-cols-2 gap-4 mb-5 lg:grid-cols-4">
           <KpiCard
             label="Tasks / Hour"
             value={summary.tasks_per_hour}
@@ -283,7 +283,7 @@ export function DashboardClient({
         </div>
 
         {/* Throughput chart */}
-        <div style={{ ...PANEL, marginBottom: 20 }}>
+        <div style={{ ...PANEL, marginBottom: 16 }}>
           <p style={SECTION_LABEL}>
             THROUGHPUT — LAST 24 HOURS
             <span style={{ fontWeight: 400, color: '#4B5563', marginLeft: 8 }}>
@@ -293,8 +293,8 @@ export function DashboardClient({
           <ThroughputChart data={throughput} />
         </div>
 
-        {/* Bottom row: forklift tasks + alerts */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Bottom row — stacked on mobile, side-by-side on md+ */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
           <div style={PANEL}>
             <p style={SECTION_LABEL}>TASKS COMPLETED BY FORKLIFT — 24H</p>

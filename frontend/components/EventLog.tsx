@@ -175,8 +175,8 @@ export function EventLog({ initialEvents }: Props) {
 
                 {/* Type badge */}
                 <span
-                  className={`flex-shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${colorForType(ev.type)}`}
-                  style={{ maxWidth: '11rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  className={`flex-shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium max-w-[7rem] sm:max-w-[11rem] ${colorForType(ev.type)}`}
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 >
                   {ev.type}
                 </span>
@@ -186,8 +186,8 @@ export function EventLog({ initialEvents }: Props) {
                   {summarize(ev.type, ev.payload)}
                 </p>
 
-                {/* Timestamp */}
-                <time className="flex-shrink-0 text-xs text-gray-400">
+                {/* Timestamp — hidden on phone to save space */}
+                <time className="hidden sm:block flex-shrink-0 text-xs text-gray-400">
                   {new Date(ev.timestamp).toLocaleTimeString()}
                 </time>
               </div>

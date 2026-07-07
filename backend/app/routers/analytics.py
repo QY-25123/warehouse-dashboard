@@ -15,8 +15,8 @@ async def get_summary(
 ):
     async with pool.acquire() as conn:
         tasks_per_hour = await conn.fetchval(
-            "SELECT COUNT(*)::int FROM events "
-            "WHERE type='task_completed' AND timestamp >= NOW() - INTERVAL '1 hour'"
+            "SELECT COUNT(*)::int FROM tasks "
+            "WHERE status='completed' AND updated_at >= NOW() - INTERVAL '1 hour'"
         )
         total_forklifts = await conn.fetchval(
             "SELECT COUNT(*)::int FROM forklifts"
@@ -55,9 +55,9 @@ async def get_throughput(
 ):
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT date_trunc('hour', timestamp) AS bucket, COUNT(*)::int AS count "
-            "FROM events "
-            "WHERE type='task_completed' AND timestamp >= NOW() - INTERVAL '24 hours' "
+            "SELECT date_trunc('hour', updated_at) AS bucket, COUNT(*)::int AS count "
+            "FROM tasks "
+            "WHERE status='completed' AND updated_at >= NOW() - INTERVAL '24 hours' "
             "GROUP BY bucket ORDER BY bucket"
         )
 

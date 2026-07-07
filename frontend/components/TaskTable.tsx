@@ -178,17 +178,17 @@ export function TaskTable({ initialTasks }: Props) {
               <th className="px-4 py-3">Item</th>
               <th className="px-4 py-3">From</th>
               <th className="px-4 py-3">To</th>
-              <th className="px-4 py-3">Forklift</th>
+              <th className="hidden sm:table-cell px-4 py-3">Forklift</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Updated</th>
+              <th className="hidden md:table-cell px-4 py-3">Created</th>
+              <th className="hidden md:table-cell px-4 py-3">Updated</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {visible.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={6}
                   className="px-4 py-10 text-center text-sm text-gray-400"
                 >
                   No tasks match the current filter.
@@ -228,7 +228,7 @@ export function TaskTable({ initialTasks }: Props) {
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">
                     {zoneLabel(task.destination_zone)}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                  <td className="hidden sm:table-cell px-4 py-3 font-mono text-xs text-gray-500">
                     {forkliftLabel(task.forklift_id)}
                   </td>
                   <td className="px-4 py-3">
@@ -242,10 +242,10 @@ export function TaskTable({ initialTasks }: Props) {
                       {STATUS_LABEL[task.status]}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
+                  <td className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-xs text-gray-400">
                     {fmtDate(task.created_at)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
+                  <td className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-xs text-gray-400">
                     {fmtDate(task.updated_at)}
                   </td>
                 </tr>

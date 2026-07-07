@@ -123,7 +123,7 @@ export function InventoryTable({ initialItems }: Props) {
               <th className="px-4 py-3">Item Name</th>
               <th className="px-4 py-3">Quantity</th>
               <th className="px-4 py-3">Zone</th>
-              <th className="px-4 py-3">Last Updated</th>
+              <th className="hidden sm:table-cell px-4 py-3">Last Updated</th>
               <th className="px-4 py-3 sr-only">Detail</th>
             </tr>
           </thead>
@@ -168,7 +168,7 @@ export function InventoryTable({ initialItems }: Props) {
                         {item.location_zone}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
+                    <td className="hidden sm:table-cell whitespace-nowrap px-4 py-3 text-xs text-gray-400">
                       {fmtDate(item.last_updated)}
                     </td>
                     <td className="px-4 py-3 text-gray-300 group-hover:text-gray-500">

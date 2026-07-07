@@ -575,11 +575,11 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
         </span>
       </div>
 
-      {/* Three-panel layout */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      {/* Three-panel layout — stacks on mobile, side-by-side on md+ */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-start">
 
-        {/* Left panel — Active Tasks */}
-        <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', alignSelf: 'stretch' }}>
+        {/* Left panel — Active Tasks — desktop only */}
+        <div className="hidden md:flex flex-col flex-shrink-0" style={{ width: 220, alignSelf: 'stretch' }}>
           <ActiveTasksPanel
             tasks={activeTasksList}
             forklifts={forklifts}
@@ -589,126 +589,150 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
           />
         </div>
 
-        {/* Center — SVG map */}
-        <div className="min-w-0 flex-1 overflow-hidden" style={{ ...panelStyle }}>
-          <svg
-            viewBox="-18 -2 136 128"
-            className="w-full"
-            style={{ display: 'block' }}
-            onMouseLeave={() => setHoveredId(null)}
-            aria-label="Warehouse floor map"
-          >
-            <WarehouseFloor />
+        {/* Center — SVG map + mobile-only panels below */}
+        <div className="w-full min-w-0 md:flex-1">
 
-            {items.map((f) => (
-              <ForkliftMarker
-                key={f.id}
-                f={f}
-                prevPos={prevPositions.current.get(f.id)}
-                isHovered={hoveredId === f.id}
-                onEnter={() => setHoveredId(f.id)}
-                onLeave={() => setHoveredId(null)}
-              />
-            ))}
+          {/* Scrollable map wrapper — allows horizontal pan on small screens */}
+          <div style={{ ...panelStyle, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ minWidth: 420 }}>
+              <svg
+                viewBox="-18 -2 136 128"
+                style={{ width: '100%', display: 'block' }}
+                onMouseLeave={() => setHoveredId(null)}
+                aria-label="Warehouse floor map"
+              >
+                <WarehouseFloor />
 
-            {hovered && <MapTooltip f={hovered} tx={tx} ty={ty} />}
-          </svg>
-        </div>
+                {items.map((f) => (
+                  <ForkliftMarker
+                    key={f.id}
+                    f={f}
+                    prevPos={prevPositions.current.get(f.id)}
+                    isHovered={hoveredId === f.id}
+                    onEnter={() => setHoveredId(f.id)}
+                    onLeave={() => setHoveredId(null)}
+                  />
+                ))}
 
-        {/* Right panel */}
-        <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Fleet Status */}
-          <div style={{ ...panelStyle, padding: 16 }}>
-            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 14 }}>
-              FLEET STATUS
-            </h2>
-            <div className="flex items-center gap-4 mb-4">
-              <DonutChart counts={counts} total={total} />
-              <div className="flex-1 text-right">
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#F1F5F9', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                  {total}
-                </div>
-                <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>forklifts</div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {counts.map(({ status, count }) => {
-                const pct = total > 0 ? (count / total) * 100 : 0;
-                const col = STATUS_COLOR[status];
-                return (
-                  <div key={status}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: col }} />
-                        <span style={{ fontSize: 12, color: '#94A3B8' }}>{STATUS_LABEL[status]}</span>
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', fontVariantNumeric: 'tabular-nums' }}>
-                        {count}
-                      </span>
-                    </div>
-                    <div style={{ height: 3, borderRadius: 2, background: '#0F1117', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', width: `${pct}%`, backgroundColor: col,
-                        borderRadius: 2, transition: 'width 0.4s ease', opacity: count === 0 ? 0.2 : 1,
-                      }} />
-                    </div>
-                  </div>
-                );
-              })}
+                {hovered && <MapTooltip f={hovered} tx={tx} ty={ty} />}
+              </svg>
             </div>
           </div>
 
-          {/* Fleet Roster */}
-          <div style={{ ...panelStyle, padding: 16, overflow: 'hidden' }}>
-            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 12 }}>
-              FLEET ROSTER
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {sorted.map((f, i) => {
-                const badge = STATUS_BADGE_STYLE[f.status] ?? STATUS_BADGE_FALLBACK;
-                const isErr = f.status === 'error';
-                const isHov = hoveredId === f.id;
-                const zone  = coordsToZone(f.x, f.y);
-                return (
-                  <button
-                    key={f.id}
-                    onMouseEnter={() => setHoveredId(f.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
-                      textAlign: 'left', transition: 'background 0.15s', width: '100%',
-                      border: isErr ? '1px solid #EF444440' : '1px solid transparent',
-                      borderTop: isErr ? '2px solid #EF4444' : undefined,
-                      background: isHov ? '#2A2D3E' : i % 2 === 0 ? '#0F111780' : 'transparent',
-                    }}
-                  >
-                    <span className="h-2 w-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: STATUS_COLOR[f.status] ?? '#374151' }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', flex: 1 }}>
-                      {f.name}
-                    </span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 500, color: '#94A3B8',
-                      background: '#0F1117', border: '1px solid #2A2D3E',
-                      borderRadius: 4, padding: '1px 5px',
-                    }}>
-                      {zone}
-                    </span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, color: badge.color,
-                      background: badge.bg, border: `1px solid ${badge.border}`,
-                      borderRadius: 999, padding: '1px 7px',
-                      display: 'flex', alignItems: 'center', gap: 3,
-                    }}>
-                      {isErr && <span style={{ fontSize: 9 }}>⚠</span>}
-                      {badge.text}
-                    </span>
-                  </button>
-                );
-              })}
+          {/* Mobile scroll hint */}
+          <p className="mt-1 text-center text-xs md:hidden" style={{ color: '#374151' }}>
+            Scroll to navigate the floor map
+          </p>
+
+          {/* Mobile-only Active Tasks — shown below map */}
+          <div className="mt-3 md:hidden">
+            <ActiveTasksPanel
+              tasks={activeTasksList}
+              forklifts={forklifts}
+              forkliftPhases={forkliftPhases}
+              hoveredId={hoveredId}
+              onHover={setHoveredId}
+            />
+          </div>
+        </div>
+
+        {/* Right panel — 2-col grid on mobile, stacked column on desktop */}
+        <div className="w-full md:flex-shrink-0 flex flex-col gap-3" style={{ minWidth: 0 }}>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
+
+            {/* Fleet Status */}
+            <div style={{ ...panelStyle, padding: 16 }}>
+              <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 14 }}>
+                FLEET STATUS
+              </h2>
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <DonutChart counts={counts} total={total} />
+                <div className="flex-1 text-right">
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#F1F5F9', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                    {total}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>forklifts</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {counts.map(({ status, count }) => {
+                  const pct = total > 0 ? (count / total) * 100 : 0;
+                  const col = STATUS_COLOR[status];
+                  return (
+                    <div key={status}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: col }} />
+                          <span style={{ fontSize: 12, color: '#94A3B8' }}>{STATUS_LABEL[status]}</span>
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', fontVariantNumeric: 'tabular-nums' }}>
+                          {count}
+                        </span>
+                      </div>
+                      <div style={{ height: 3, borderRadius: 2, background: '#0F1117', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', width: `${pct}%`, backgroundColor: col,
+                          borderRadius: 2, transition: 'width 0.4s ease', opacity: count === 0 ? 0.2 : 1,
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Fleet Roster */}
+            <div style={{ ...panelStyle, padding: 16, overflow: 'hidden' }}>
+              <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 12 }}>
+                FLEET ROSTER
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {sorted.map((f, i) => {
+                  const badge = STATUS_BADGE_STYLE[f.status] ?? STATUS_BADGE_FALLBACK;
+                  const isErr = f.status === 'error';
+                  const isHov = hoveredId === f.id;
+                  const zone  = coordsToZone(f.x, f.y);
+                  return (
+                    <button
+                      key={f.id}
+                      onMouseEnter={() => setHoveredId(f.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '7px 8px', borderRadius: 8, cursor: 'pointer',
+                        textAlign: 'left', transition: 'background 0.15s', width: '100%',
+                        border: isErr ? '1px solid #EF444440' : '1px solid transparent',
+                        borderTop: isErr ? '2px solid #EF4444' : undefined,
+                        background: isHov ? '#2A2D3E' : i % 2 === 0 ? '#0F111780' : 'transparent',
+                      }}
+                    >
+                      <span className="h-2 w-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: STATUS_COLOR[f.status] ?? '#374151' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {f.name}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 500, color: '#94A3B8',
+                        background: '#0F1117', border: '1px solid #2A2D3E',
+                        borderRadius: 4, padding: '1px 5px', flexShrink: 0,
+                      }}>
+                        {zone}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, color: badge.color,
+                        background: badge.bg, border: `1px solid ${badge.border}`,
+                        borderRadius: 999, padding: '1px 7px', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', gap: 3,
+                      }}>
+                        {isErr && <span style={{ fontSize: 9 }}>⚠</span>}
+                        {badge.text}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

@@ -16,8 +16,6 @@ export function KpiCard({ label, value, unit, accent, sub }: KpiCardProps) {
     borderRadius: 12,
     boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
     padding: '20px 24px',
-    flex: 1,
-    minWidth: 0,
   };
 
   return (

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/Navigation';
+import { OnboardingTour } from '@/components/OnboardingTour';
 
 export const metadata: Metadata = {
   title: 'Warehouse Dashboard',
@@ -14,7 +15,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-gray-50 text-gray-900">
         <AuthProvider>
           <Navigation />
-          <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+          <OnboardingTour />
+          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
         </AuthProvider>
       </body>
     </html>
