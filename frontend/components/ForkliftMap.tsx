@@ -636,8 +636,8 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
           </div>
         </div>
 
-        {/* Right panel — 2-col grid on mobile, stacked column on desktop */}
-        <div className="w-full md:flex-shrink-0 flex flex-col gap-3" style={{ minWidth: 0 }}>
+        {/* Right panel — full width on mobile, fixed 240px on desktop */}
+        <div className="w-full md:w-60 md:flex-shrink-0 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
 
             {/* Fleet Status */}
