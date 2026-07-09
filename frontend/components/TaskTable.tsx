@@ -233,7 +233,7 @@ export function TaskTable({ initialTasks }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[task.status]}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${STATUS_BADGE[task.status]}`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[task.status]}`}
