@@ -31,11 +31,11 @@ export function ForkliftTabs({ initialForklifts }: Props) {
   ).length;
 
   return (
-    <div className="flex flex-col" style={{ color: '#F1F5F9' }}>
+    <div className="flex flex-col" style={{ color: '#111827' }}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div
         className="flex flex-col gap-4 px-4 py-5 sm:px-6 sm:flex-row sm:items-center sm:justify-between"
-        style={{ borderBottom: '1px solid #2A2D3E', background: '#1A1D27' }}
+        style={{ borderBottom: '1px solid #E5E7EB', background: '#FFFFFF' }}
       >
         {/* Left: title */}
         <div className="flex items-center gap-3">
@@ -49,11 +49,11 @@ export function ForkliftTabs({ initialForklifts }: Props) {
           <div>
             <h1
               className="font-semibold tracking-widest"
-              style={{ fontSize: 14, letterSpacing: '0.12em', color: '#F1F5F9' }}
+              style={{ fontSize: 14, letterSpacing: '0.12em', color: '#111827' }}
             >
               OPERATIONS CENTER
             </h1>
-            <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+            <p style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
               Live Forklift Tracking · Updates every 2s
             </p>
           </div>
@@ -79,16 +79,16 @@ export function ForkliftTabs({ initialForklifts }: Props) {
               key={label + icon}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5"
               style={{
-                background: '#0F1117',
-                border: '1px solid #2A2D3E',
+                background: '#F9FAFB',
+                border: '1px solid #E5E7EB',
                 fontSize: 12,
                 fontWeight: 500,
-                color: '#94A3B8',
+                color: '#6B7280',
                 fontVariantNumeric: mono ? 'tabular-nums' : undefined,
               }}
             >
               <span>{icon}</span>
-              <span style={{ color: '#F1F5F9' }}>{label}</span>
+              <span style={{ color: '#111827' }}>{label}</span>
             </div>
           ))}
         </div>
@@ -98,7 +98,7 @@ export function ForkliftTabs({ initialForklifts }: Props) {
       <div className="px-4 pt-5 sm:px-6">
         <div
           className="flex w-fit gap-1 rounded-xl p-1"
-          style={{ background: '#0F1117', border: '1px solid #2A2D3E' }}
+          style={{ background: '#F3F4F6', border: '1px solid #E5E7EB' }}
         >
           {([
             { id: 'map' as Tab,     icon: '📍', label: 'Live Map'        },
@@ -111,7 +111,7 @@ export function ForkliftTabs({ initialForklifts }: Props) {
               style={
                 tab === id
                   ? { background: '#3B82F6', color: '#fff' }
-                  : { background: 'transparent', color: '#94A3B8' }
+                  : { background: 'transparent', color: '#6B7280' }
               }
             >
               <span>{icon}</span>

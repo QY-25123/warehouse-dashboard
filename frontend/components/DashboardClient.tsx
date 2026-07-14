@@ -8,16 +8,16 @@ import { getClientToken } from '@/lib/client-auth';
 import type { AnalyticsSummary, ThroughputBucket, ForkliftTaskCount, Alert } from '@/lib/types';
 
 const PANEL: CSSProperties = {
-  background: '#1A1D27',
-  border: '1px solid #2A2D3E',
+  background: '#FFFFFF',
+  border: '1px solid #E5E7EB',
   borderRadius: 12,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   padding: '20px 24px',
 };
 
 const SECTION_LABEL: CSSProperties = {
   fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
-  color: '#64748B', textTransform: 'uppercase', marginBottom: 16,
+  color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 16,
 };
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
@@ -79,7 +79,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
             <text
               x={LABEL_W - 8} y={y + ROW_H / 2 + 4}
               textAnchor="end" fontSize={11}
-              fill={isTop ? '#F1F5F9' : '#94A3B8'}
+              fill={isTop ? '#111827' : '#6B7280'}
               fontWeight={isTop ? 600 : 400}
             >
               {d.name}
@@ -89,7 +89,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
             <rect
               x={trackX} y={y + 6}
               width={BAR_AREA} height={16}
-              fill="#0F1117" rx={3}
+              fill="#F3F4F6" rx={3}
             />
 
             {/* Bar */}
@@ -107,7 +107,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
             <text
               x={trackX + BAR_AREA + 8}
               y={y + ROW_H / 2 + 4}
-              fontSize={11} fill="#94A3B8"
+              fontSize={11} fill="#6B7280"
               style={{ fontVariantNumeric: 'tabular-nums' }}
             >
               {d.tasks_completed}
@@ -155,11 +155,11 @@ function AlertsList({ alerts }: { alerts: Alert[] }) {
               }}>
                 {sev.label}
               </span>
-              <span style={{ fontSize: 10, color: '#4B5563', marginLeft: 'auto' }}>
+              <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>
                 {timeAgo(a.created_at)}
               </span>
             </div>
-            <p style={{ fontSize: 11, color: '#94A3B8', lineHeight: 1.5 }}>{msg}</p>
+            <p style={{ fontSize: 11, color: '#4B5563', lineHeight: 1.5 }}>{msg}</p>
           </div>
         );
       })}
@@ -231,16 +231,16 @@ export function DashboardClient({
     secsAgo < 5 ? 'just now' : `${secsAgo}s ago`;
 
   return (
-    <div style={{ background: '#0F1117', minHeight: '100vh', borderTop: '3px solid #3B82F6' }}>
+    <div style={{ background: '#F9FAFB', minHeight: '100vh', borderTop: '3px solid #3B82F6' }}>
       <div className="mx-auto px-4 py-6 sm:px-6 sm:py-7" style={{ maxWidth: 1280 }}>
 
         {/* Page header */}
         <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', letterSpacing: '0.06em' }}>
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#111827', letterSpacing: '0.06em' }}>
               OPERATIONS CENTER
             </h1>
-            <p style={{ fontSize: 12, color: '#4B5563', marginTop: 4 }}>
+            <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
               Real-time warehouse performance metrics
             </p>
           </div>

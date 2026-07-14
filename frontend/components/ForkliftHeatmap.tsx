@@ -84,15 +84,15 @@ export function ForkliftHeatmap() {
   const maxCount = Math.max(1, ...Array.from(counts.values()));
 
   const panelStyle: CSSProperties = {
-    background: '#1A1D27',
-    border: '1px solid #2A2D3E',
+    background: '#FFFFFF',
+    border: '1px solid #E5E7EB',
     borderRadius: 12,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   };
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center" style={{ color: '#94A3B8', fontSize: 14 }}>
+      <div className="flex h-64 items-center justify-center" style={{ color: '#6B7280', fontSize: 14 }}>
         Loading heatmap data…
       </div>
     );
@@ -100,14 +100,14 @@ export function ForkliftHeatmap() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4" style={{ fontSize: 12, color: '#94A3B8' }}>
+      <div className="flex flex-wrap items-center gap-4" style={{ fontSize: 12, color: '#6B7280' }}>
         <span>{total} position events analysed</span>
         {lastRefresh && <span>Refreshes every 30 s · last at {lastRefresh.toLocaleTimeString()}</span>}
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
         {/* SVG heatmap — scrollable on small screens */}
-        <div className="min-w-0 md:flex-1" style={{ ...panelStyle, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="min-w-0 md:flex-1" style={{ background: '#1A1D27', border: '1px solid #374151', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <div style={{ minWidth: 380 }}>
           <svg viewBox="-18 -2 136 128" style={{ width: '100%', display: 'block' }}>
             {/* Outer shell */}
@@ -204,21 +204,21 @@ export function ForkliftHeatmap() {
         <div className="w-full md:w-60 md:flex-shrink-0 flex flex-col gap-4">
           {/* Gradient legend */}
           <div style={{ ...panelStyle, padding: 16 }}>
-            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 12 }}>
+            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#9CA3AF', marginBottom: 12 }}>
               TRAFFIC INTENSITY
             </h2>
             <div style={{
               height: 12, borderRadius: 6,
               background: 'linear-gradient(to right, #1A1D27, #1E3A5F, #1D4ED8, #D97706, #DC2626)',
             }} />
-            <div className="flex justify-between mt-1" style={{ fontSize: 10, color: '#94A3B8' }}>
+            <div className="flex justify-between mt-1" style={{ fontSize: 10, color: '#6B7280' }}>
               <span>Empty</span><span>Low</span><span>Mid</span><span>High</span><span>Peak</span>
             </div>
           </div>
 
           {/* Busiest zones */}
           <div style={{ ...panelStyle, padding: 16 }}>
-            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 12 }}>
+            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#9CA3AF', marginBottom: 12 }}>
               BUSIEST ZONES
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -230,22 +230,22 @@ export function ForkliftHeatmap() {
                   const col  = intensityToColor(norm);
                   return (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', width: 14, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', width: 14, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {i + 1}
                       </span>
                       <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, backgroundColor: col, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#F1F5F9', width: 32 }}>{label}</span>
-                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#0F1117', overflow: 'hidden' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#111827', width: 32 }}>{label}</span>
+                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#F3F4F6', overflow: 'hidden' }}>
                         <div style={{ height: '100%', borderRadius: 2, width: `${norm*100}%`, backgroundColor: col, transition: 'width 0.4s ease' }} />
                       </div>
-                      <span style={{ fontSize: 11, color: '#94A3B8', fontVariantNumeric: 'tabular-nums', width: 24, textAlign: 'right' }}>
+                      <span style={{ fontSize: 11, color: '#6B7280', fontVariantNumeric: 'tabular-nums', width: 24, textAlign: 'right' }}>
                         {count}
                       </span>
                     </div>
                   );
                 })}
               {counts.size === 0 && (
-                <p style={{ fontSize: 12, color: '#94A3B8' }}>No position data yet.</p>
+                <p style={{ fontSize: 12, color: '#6B7280' }}>No position data yet.</p>
               )}
             </div>
           </div>

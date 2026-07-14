@@ -272,7 +272,7 @@ function DonutChart({ counts, total }: { counts: { status: Forklift['status']; c
   });
   return (
     <svg width={80} height={80} viewBox="0 0 80 80">
-      <circle cx={40} cy={40} r={R} fill="none" stroke="#1E2130" strokeWidth={10} />
+      <circle cx={40} cy={40} r={R} fill="none" stroke="#F3F4F6" strokeWidth={10} />
       {slices.map((s) => (
         <circle key={s.status} cx={40} cy={40} r={R} fill="none"
           stroke={STATUS_COLOR[s.status]} strokeWidth={10}
@@ -280,8 +280,8 @@ function DonutChart({ counts, total }: { counts: { status: Forklift['status']; c
           strokeDashoffset={C/4 - s.offset}
           style={{ transition: 'stroke-dasharray 0.4s ease' }} />
       ))}
-      <text x={40} y={37} textAnchor="middle" fontSize={11} fill="#F1F5F9" fontWeight="700">{total}</text>
-      <text x={40} y={49} textAnchor="middle" fontSize={7} fill="#94A3B8">units</text>
+      <text x={40} y={37} textAnchor="middle" fontSize={11} fill="#111827" fontWeight="700">{total}</text>
+      <text x={40} y={49} textAnchor="middle" fontSize={7} fill="#6B7280">units</text>
     </svg>
   );
 }
@@ -298,10 +298,10 @@ function ActiveTasksPanel({
   onHover: (fid: number | null) => void;
 }) {
   const panelStyle: CSSProperties = {
-    background: '#1A1D27',
-    border: '1px solid #2A2D3E',
+    background: '#FFFFFF',
+    border: '1px solid #E5E7EB',
     borderRadius: 12,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
     padding: 14,
     display: 'flex',
     flexDirection: 'column',
@@ -315,7 +315,7 @@ function ActiveTasksPanel({
     <div style={panelStyle}>
       {/* Title */}
       <div className="flex items-center justify-between mb-3" style={{ flexShrink: 0 }}>
-        <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8' }}>
+        <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#9CA3AF' }}>
           ACTIVE TASKS
         </h2>
         <span style={{
@@ -330,7 +330,7 @@ function ActiveTasksPanel({
 
       {tasks.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ fontSize: 12, color: '#4B5563', textAlign: 'center' }}>No active tasks</p>
+          <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center' }}>No active tasks</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
@@ -348,9 +348,9 @@ function ActiveTasksPanel({
                 onMouseLeave={() => onHover(null)}
                 style={{
                   background: isDelayed
-                    ? '#EF444408'
-                    : isHighlighted ? '#2A2D3E' : '#0F111780',
-                  border: `1px solid ${isDelayed ? '#EF444430' : isHighlighted ? typeStyle.color + '60' : '#2A2D3E'}`,
+                    ? '#FEF2F2'
+                    : isHighlighted ? '#F3F4F6' : '#F9FAFB',
+                  border: `1px solid ${isDelayed ? '#FECACA' : isHighlighted ? typeStyle.color + '60' : '#E5E7EB'}`,
                   borderLeft: `3px solid ${isDelayed ? '#EF4444' : typeStyle.color}`,
                   borderRadius: 8,
                   padding: '8px 10px',
@@ -362,7 +362,7 @@ function ActiveTasksPanel({
               >
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-1.5">
-                  <span style={{ fontSize: 10, color: '#4B5563', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: 10, color: '#9CA3AF', fontVariantNumeric: 'tabular-nums' }}>
                     #{task.id}
                   </span>
                   <div className="flex items-center gap-1">
@@ -386,7 +386,7 @@ function ActiveTasksPanel({
                 </div>
 
                 {/* Route */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', marginBottom: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', marginBottom: 4 }}>
                   {task.origin_zone ?? '?'} → {task.destination_zone ?? '?'}
                 </div>
 
@@ -395,8 +395,8 @@ function ActiveTasksPanel({
                   const forkBadge = STATUS_BADGE_STYLE[fork.status] ?? STATUS_BADGE_FALLBACK;
                   return (
                     <div className="flex items-center gap-1.5 mb-3">
-                      <span style={{ fontSize: 10, color: '#94A3B8' }}>🚜</span>
-                      <span style={{ fontSize: 11, color: '#94A3B8' }}>{fork.name}</span>
+                      <span style={{ fontSize: 10, color: '#6B7280' }}>🚜</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{fork.name}</span>
                       <span style={{
                         marginLeft: 'auto',
                         fontSize: 9, fontWeight: 600,
@@ -422,7 +422,7 @@ function ActiveTasksPanel({
                 </div>
 
                 {/* Time */}
-                <div style={{ fontSize: 10, color: '#4B5563' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF' }}>
                   {timeAgo(task.updated_at)}
                 </div>
               </div>
@@ -558,10 +558,10 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
   const total = items.length;
 
   const panelStyle: CSSProperties = {
-    background: '#1A1D27',
-    border: '1px solid #2A2D3E',
+    background: '#FFFFFF',
+    border: '1px solid #E5E7EB',
     borderRadius: 12,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   };
 
   return (
@@ -593,7 +593,7 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
         <div className="w-full min-w-0 md:flex-1">
 
           {/* Scrollable map wrapper — allows horizontal pan on small screens */}
-          <div style={{ ...panelStyle, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ background: '#1A1D27', border: '1px solid #374151', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <div style={{ minWidth: 420 }}>
               <svg
                 viewBox="-18 -2 136 128"
@@ -642,16 +642,16 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
 
             {/* Fleet Status */}
             <div style={{ ...panelStyle, padding: 16 }}>
-              <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#9CA3AF', marginBottom: 14 }}>
                 FLEET STATUS
               </h2>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <DonutChart counts={counts} total={total} />
                 <div className="flex-1 text-right">
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#F1F5F9', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#111827', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                     {total}
                   </div>
-                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>forklifts</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>forklifts</div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -663,13 +663,13 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
                       <div className="flex items-center justify-between mb-1">
                         <span className="flex items-center gap-2">
                           <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: col }} />
-                          <span style={{ fontSize: 12, color: '#94A3B8' }}>{STATUS_LABEL[status]}</span>
+                          <span style={{ fontSize: 12, color: '#6B7280' }}>{STATUS_LABEL[status]}</span>
                         </span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>
                           {count}
                         </span>
                       </div>
-                      <div style={{ height: 3, borderRadius: 2, background: '#0F1117', overflow: 'hidden' }}>
+                      <div style={{ height: 3, borderRadius: 2, background: '#F3F4F6', overflow: 'hidden' }}>
                         <div style={{
                           height: '100%', width: `${pct}%`, backgroundColor: col,
                           borderRadius: 2, transition: 'width 0.4s ease', opacity: count === 0 ? 0.2 : 1,
@@ -683,7 +683,7 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
 
             {/* Fleet Roster */}
             <div style={{ ...panelStyle, padding: 16, overflow: 'hidden' }}>
-              <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#94A3B8', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: '#9CA3AF', marginBottom: 12 }}>
                 FLEET ROSTER
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -703,17 +703,17 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
                         textAlign: 'left', transition: 'background 0.15s', width: '100%',
                         border: isErr ? '1px solid #EF444440' : '1px solid transparent',
                         borderTop: isErr ? '2px solid #EF4444' : undefined,
-                        background: isHov ? '#2A2D3E' : i % 2 === 0 ? '#0F111780' : 'transparent',
+                        background: isHov ? '#F3F4F6' : i % 2 === 0 ? '#F9FAFB' : 'transparent',
                       }}
                     >
                       <span className="h-2 w-2 rounded-full flex-shrink-0"
                         style={{ backgroundColor: STATUS_COLOR[f.status] ?? '#374151' }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#111827', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {f.name}
                       </span>
                       <span style={{
-                        fontSize: 10, fontWeight: 500, color: '#94A3B8',
-                        background: '#0F1117', border: '1px solid #2A2D3E',
+                        fontSize: 10, fontWeight: 500, color: '#6B7280',
+                        background: '#F9FAFB', border: '1px solid #E5E7EB',
                         borderRadius: 4, padding: '1px 5px', flexShrink: 0,
                       }}>
                         {zone}
