@@ -34,8 +34,12 @@ CREATE TABLE IF NOT EXISTS forklifts (
     status       forklift_status  NOT NULL DEFAULT 'idle',
     x            NUMERIC(8, 2)    NOT NULL,
     y            NUMERIC(8, 2)    NOT NULL,
+    capacity     INTEGER          NOT NULL DEFAULT 50,
     last_updated TIMESTAMPTZ      NOT NULL DEFAULT NOW()
 );
+
+-- Add capacity to existing deployments (idempotent)
+ALTER TABLE forklifts ADD COLUMN IF NOT EXISTS capacity INTEGER NOT NULL DEFAULT 50;
 
 -- item_name UNIQUE enables ON CONFLICT DO NOTHING idempotent seeding.
 CREATE TABLE IF NOT EXISTS inventory (
@@ -54,9 +58,13 @@ CREATE TABLE IF NOT EXISTS tasks (
     origin_zone       VARCHAR(4),
     destination_zone  VARCHAR(4),
     inventory_item_id INTEGER      REFERENCES inventory(id),
+    planned_quantity  INTEGER,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- Add planned_quantity to existing deployments (idempotent)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS planned_quantity INTEGER;
 
 CREATE TABLE IF NOT EXISTS events (
     id        SERIAL PRIMARY KEY,
@@ -83,6 +91,41 @@ CREATE INDEX IF NOT EXISTS idx_events_timestamp     ON events(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_type          ON events(type);
 CREATE INDEX IF NOT EXISTS idx_alerts_resolved      ON alerts(resolved);
 CREATE INDEX IF NOT EXISTS idx_alerts_severity      ON alerts(severity);
+
+-- ── WhatsApp agentic workflow ─────────────────────────────────────────────────
+
+DO $$ BEGIN
+  CREATE TYPE whatsapp_session_state AS ENUM (
+    'idle', 'chatting', 'awaiting_confirmation',
+    'generating', 'awaiting_plan_approval', 'executing'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE whatsapp_message_direction AS ENUM ('inbound', 'outbound');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+    id           SERIAL PRIMARY KEY,
+    phone_number VARCHAR(30)             NOT NULL UNIQUE,
+    state        whatsapp_session_state  NOT NULL DEFAULT 'idle',
+    pending_plan JSONB,
+    created_at   TIMESTAMPTZ             NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ             NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_messages (
+    id         SERIAL PRIMARY KEY,
+    session_id INTEGER                       NOT NULL REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+    direction  whatsapp_message_direction    NOT NULL,
+    content    TEXT                          NOT NULL,
+    timestamp  TIMESTAMPTZ                   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_session ON whatsapp_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_updated ON whatsapp_sessions(updated_at DESC);
 
 -- ── Auth: user profiles ──────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ from app.database import create_pool
 from app.ws_manager import manager as ws_manager
 from app import simulator
 from app.routers import forklifts, tasks, inventory, alerts, events
-from app.routers import ws, admin, analytics
+from app.routers import ws, admin, analytics, ai_workflow, telegram_bot
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,12 +24,27 @@ async def lifespan(app: FastAPI):
     pool = await create_pool()
     app.state.pool = pool
     sim_task = asyncio.create_task(simulator.run(pool, ws_manager))
+
+    poll_task = None
+    if os.getenv("TELEGRAM_USE_POLLING", "").lower() in ("1", "true", "yes"):
+        from app.routers.telegram_bot import run_polling  # noqa: PLC0415
+        poll_task = asyncio.create_task(run_polling(pool))
+
     yield
+
     sim_task.cancel()
     try:
         await sim_task
     except asyncio.CancelledError:
         pass
+
+    if poll_task:
+        poll_task.cancel()
+        try:
+            await poll_task
+        except asyncio.CancelledError:
+            pass
+
     await pool.close()
 
 
@@ -55,6 +70,8 @@ app.include_router(events.router)
 app.include_router(ws.router)
 app.include_router(admin.router)
 app.include_router(analytics.router)
+app.include_router(ai_workflow.router)
+app.include_router(telegram_bot.router)
 
 
 @app.get("/health")

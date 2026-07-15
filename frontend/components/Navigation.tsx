@@ -12,6 +12,8 @@ const LINKS = [
   { href: '/inventory',  label: 'Inventory', exact: false },
   { href: '/alerts',     label: 'Alerts',    exact: false },
   { href: '/events',     label: 'Events',    exact: false },
+  { href: '/ai',         label: 'AI Tasks',  exact: false },
+  { href: '/telegram',   label: 'Telegram',  exact: false },
 ] as const;
 
 export function Navigation() {
