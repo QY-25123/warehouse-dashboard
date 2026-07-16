@@ -30,6 +30,11 @@ async def lifespan(app: FastAPI):
         from app.routers.telegram_bot import run_polling  # noqa: PLC0415
         poll_task = asyncio.create_task(run_polling(pool))
 
+    sheets_task = None
+    if os.getenv("GOOGLE_SHEET_ID", "").strip() and os.getenv("GOOGLE_OAUTH_JSON", "").strip():
+        from app import sheets_poller  # noqa: PLC0415
+        sheets_task = asyncio.create_task(sheets_poller.run(pool))
+
     yield
 
     sim_task.cancel()
@@ -42,6 +47,13 @@ async def lifespan(app: FastAPI):
         poll_task.cancel()
         try:
             await poll_task
+        except asyncio.CancelledError:
+            pass
+
+    if sheets_task:
+        sheets_task.cancel()
+        try:
+            await sheets_task
         except asyncio.CancelledError:
             pass
 
