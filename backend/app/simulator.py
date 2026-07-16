@@ -181,7 +181,7 @@ async def _init_task_cache(conn: asyncpg.Connection) -> None:
         return
     rows = await conn.fetch(
         "SELECT id, type::text AS type, forklift_id, "
-        "       origin_zone, destination_zone, inventory_item_id "
+        "       origin_zone, destination_zone, inventory_item_id, planned_quantity "
         "FROM tasks WHERE status IN ('in-progress', 'delayed') AND forklift_id IS NOT NULL"
     )
     for r in rows:
@@ -189,6 +189,7 @@ async def _init_task_cache(conn: asyncpg.Connection) -> None:
             'id': r['id'], 'type': r['type'], 'forklift_id': r['forklift_id'],
             'origin_zone': r['origin_zone'], 'destination_zone': r['destination_zone'],
             'inventory_item_id': r['inventory_item_id'],
+            'planned_quantity': r['planned_quantity'],
         }
     _task_cache_ready = True
     logger.info("Task cache initialised: %d in-progress/delayed tasks", len(_task_cache))
@@ -420,7 +421,7 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
     try:
         pre_assigned = await conn.fetch(
             "SELECT id, type::text AS type, forklift_id, origin_zone, destination_zone, "
-            "       inventory_item_id "
+            "       inventory_item_id, planned_quantity "
             "FROM tasks WHERE status='pending' AND forklift_id IS NOT NULL ORDER BY created_at"
         )
     except Exception as exc:
@@ -453,6 +454,7 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
                 'origin_zone': task['origin_zone'],
                 'destination_zone': task['destination_zone'],
                 'inventory_item_id': task['inventory_item_id'],
+                'planned_quantity': task['planned_quantity'],
             }
             await conn.execute(
                 "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
@@ -629,6 +631,7 @@ async def _advance_tasks(conn: asyncpg.Connection) -> list[dict]:
                     row['origin_zone'],
                     row['destination_zone'],
                     msgs,
+                    row.get('planned_quantity'),
                 )
                 duration = _tick_count - state.get('start_tick', _tick_count)
                 try:
@@ -698,6 +701,7 @@ async def _apply_inventory_effect(
     origin_zone: str,
     destination_zone: str,
     msgs: list[dict],
+    planned_quantity: int | None = None,
 ) -> None:
     if not inventory_item_id:
         return
@@ -712,7 +716,7 @@ async def _apply_inventory_effect(
         iid = item['id']
 
         if task_type == 'inbound':
-            delta   = random.randint(5, 15)
+            delta   = planned_quantity or random.randint(5, 15)
             new_qty = item['quantity'] + delta
             await conn.execute(
                 "UPDATE inventory SET quantity=$1, last_updated=NOW() WHERE id=$2",
@@ -730,7 +734,7 @@ async def _apply_inventory_effect(
             }})
 
         elif task_type == 'outbound':
-            delta   = random.randint(1, 5)
+            delta   = planned_quantity or random.randint(1, 5)
             new_qty = max(0, item['quantity'] - delta)
             await conn.execute(
                 "UPDATE inventory SET quantity=$1, last_updated=NOW() WHERE id=$2",
@@ -764,7 +768,7 @@ async def _apply_inventory_effect(
             }})
 
         elif task_type == 'replenishment':
-            delta   = random.randint(10, 20)
+            delta   = planned_quantity or random.randint(10, 20)
             new_qty = item['quantity'] + delta
             await conn.execute(
                 "UPDATE inventory SET quantity=$1, last_updated=NOW() WHERE id=$2",
