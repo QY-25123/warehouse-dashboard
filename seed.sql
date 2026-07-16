@@ -3,17 +3,18 @@
 
 -- ─── Forklifts (10) ───────────────────────────────────────────────────────────
 -- Positions and status are overwritten by entrypoint.sh on every start.
-INSERT INTO forklifts (name, status, x, y, last_updated) VALUES
-    ('FL-001', 'idle', 12.5, 12.5, NOW()),
-    ('FL-002', 'idle', 37.5, 12.5, NOW()),
-    ('FL-003', 'idle', 62.5, 12.5, NOW()),
-    ('FL-004', 'idle', 87.5, 12.5, NOW()),
-    ('FL-005', 'idle', 12.5, 37.5, NOW()),
-    ('FL-006', 'idle', 37.5, 37.5, NOW()),
-    ('FL-007', 'idle', 62.5, 37.5, NOW()),
-    ('FL-008', 'idle', 87.5, 37.5, NOW()),
-    ('FL-009', 'idle', 12.5, 62.5, NOW()),
-    ('FL-010', 'idle', 37.5, 62.5, NOW())
+-- Capacities are varied to reflect different forklift models (units per trip).
+INSERT INTO forklifts (name, status, x, y, capacity, last_updated) VALUES
+    ('FL-001', 'idle', 12.5, 12.5, 50,  NOW()),
+    ('FL-002', 'idle', 37.5, 12.5, 75,  NOW()),
+    ('FL-003', 'idle', 62.5, 12.5, 60,  NOW()),
+    ('FL-004', 'idle', 87.5, 12.5, 100, NOW()),
+    ('FL-005', 'idle', 12.5, 37.5, 40,  NOW()),
+    ('FL-006', 'idle', 37.5, 37.5, 80,  NOW()),
+    ('FL-007', 'idle', 62.5, 37.5, 30,  NOW()),
+    ('FL-008', 'idle', 87.5, 37.5, 90,  NOW()),
+    ('FL-009', 'idle', 12.5, 62.5, 55,  NOW()),
+    ('FL-010', 'idle', 37.5, 62.5, 70,  NOW())
 ON CONFLICT (name) DO NOTHING;
 
 -- ─── Inventory (50 items across zones A1–D4) ──────────────────────────────────

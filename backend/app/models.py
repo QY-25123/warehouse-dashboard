@@ -10,6 +10,7 @@ class ForkliftResponse(BaseModel):
     status: str
     x: float
     y: float
+    capacity: int = 50
     last_updated: datetime
 
 
@@ -86,3 +87,17 @@ class CreateUserRequest(BaseModel):
     password: str
     role: str = "operator"
     display_name: Optional[str] = None
+
+
+# ── AI workflow models ────────────────────────────────────────────────────────
+
+class AIPlanRequest(BaseModel):
+    message: str
+
+
+class AIExecuteRequest(BaseModel):
+    plan: dict[str, Any]
+
+
+class UpdateCapacityRequest(BaseModel):
+    capacity: int

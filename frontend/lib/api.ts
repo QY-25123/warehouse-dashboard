@@ -2,6 +2,8 @@ import type {
   Forklift, Task, InventoryItem, InventoryItemTask, InventoryEvent,
   Alert, Event,
   AnalyticsSummary, ThroughputBucket, ForkliftTaskCount,
+  AIPlan, AIForkliftCapacity,
+  TelegramConversation, TelegramConversationDetail,
 } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -98,5 +100,80 @@ export const api = {
 
     forkliftTasks: (token?: string) =>
       get<ForkliftTaskCount[]>('/analytics/forklift-tasks', undefined, token),
+  },
+
+  ai: {
+    plan: async (message: string, token?: string): Promise<{ plan: AIPlan; explanation: string }> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/ai/plan`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.detail?.explanation ?? err?.detail ?? `AI plan failed (${res.status})`);
+      }
+      return res.json();
+    },
+
+    execute: async (plan: AIPlan, token?: string): Promise<{ tasks_created: number; task_ids: number[] }> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/ai/execute`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ plan }),
+      });
+      if (!res.ok) throw new Error(`Execute failed (${res.status})`);
+      return res.json();
+    },
+
+    getCapacities: (token?: string) =>
+      get<AIForkliftCapacity[]>('/ai/settings', undefined, token),
+
+    updateCapacity: async (forkliftId: number, capacity: number, token?: string): Promise<AIForkliftCapacity> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/ai/settings/${forkliftId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ capacity }),
+      });
+      if (!res.ok) throw new Error(`Update capacity failed (${res.status})`);
+      return res.json();
+    },
+  },
+
+  telegram: {
+    conversations: (token?: string) =>
+      get<TelegramConversation[]>('/telegram/conversations', undefined, token),
+
+    conversation: (chatId: string, token?: string) =>
+      get<TelegramConversationDetail>(
+        `/telegram/conversations/${encodeURIComponent(chatId)}`,
+        undefined,
+        token,
+      ),
+
+    executeFromDashboard: async (chatId: string, token?: string): Promise<void> => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(
+        `${BASE}/telegram/conversations/${encodeURIComponent(chatId)}/execute`,
+        { method: 'POST', headers },
+      );
+      if (!res.ok) throw new Error(`Execute failed (${res.status})`);
+    },
+
+    resetConversation: async (chatId: string, token?: string): Promise<void> => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(
+        `${BASE}/telegram/conversations/${encodeURIComponent(chatId)}`,
+        { method: 'DELETE', headers },
+      );
+    },
   },
 } as const;

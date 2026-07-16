@@ -6,6 +6,7 @@ export interface Forklift {
   status: 'idle' | 'moving_empty' | 'moving_loaded' | 'loading' | 'error';
   x: number;
   y: number;
+  capacity: number;
   last_updated: string;
 }
 
@@ -142,11 +143,93 @@ export interface ForkliftTaskCount {
 }
 
 export type WsMessage =
-  | { type: 'batch';             messages: WsMessage[] }
-  | { type: 'forklift_update';   payload: WsForkliftPayload }
-  | { type: 'forklift_position'; payload: WsForkliftPositionPayload }
-  | { type: 'task_update';       payload: WsTaskPayload }
-  | { type: 'task_created';      payload: WsTaskCreatedPayload }
-  | { type: 'inventory_update';  payload: WsInventoryPayload }
-  | { type: 'alert';             payload: WsAlertPayload }
-  | { type: 'tick_update';       new_events: Event[] };
+  | { type: 'batch';              messages: WsMessage[] }
+  | { type: 'forklift_update';    payload: WsForkliftPayload }
+  | { type: 'forklift_position';  payload: WsForkliftPositionPayload }
+  | { type: 'task_update';        payload: WsTaskPayload }
+  | { type: 'task_created';       payload: WsTaskCreatedPayload }
+  | { type: 'inventory_update';   payload: WsInventoryPayload }
+  | { type: 'alert';              payload: WsAlertPayload }
+  | { type: 'tick_update';        new_events: Event[] }
+  | { type: 'telegram_message';   payload: WsTelegramPayload };
+
+// ── Telegram workflow types ───────────────────────────────────────────────────
+
+export type TelegramSessionState =
+  | 'idle'
+  | 'chatting'
+  | 'awaiting_confirmation'
+  | 'generating'
+  | 'awaiting_plan_approval'
+  | 'executing';
+
+export interface TelegramMessage {
+  direction: 'inbound' | 'outbound';
+  content: string;
+  timestamp: string;
+}
+
+export interface TelegramConversation {
+  id: number;
+  phone_number: string;
+  state: TelegramSessionState;
+  last_message: string | null;
+  updated_at: string;
+  has_pending_plan: boolean;
+}
+
+export interface TelegramConversationDetail {
+  phone_number: string;
+  state: TelegramSessionState;
+  pending_plan: AIPlan | null;
+  updated_at: string;
+  messages: TelegramMessage[];
+}
+
+export interface WsTelegramPayload {
+  phone_number: string;
+  direction: 'inbound' | 'outbound';
+  content: string;
+  timestamp: string;
+  state?: TelegramSessionState;
+  plan?: AIPlan;
+  tasks_created?: number;
+}
+
+// ── AI workflow types ─────────────────────────────────────────────────────────
+
+export interface AITripAssignment {
+  forklift_id: number;
+  forklift_name: string;
+  capacity: number;
+  trips: number;
+  units_assigned: number;
+  dist_to_origin_svgu: number;
+  estimated_ticks: number;
+  estimated_seconds: number;
+}
+
+export interface AIPlan {
+  ok: boolean;
+  error?: string;
+  task_type: 'inbound' | 'outbound' | 'relocation' | 'replenishment';
+  item_id: number;
+  item_name: string;
+  quantity_requested: number;
+  quantity_planned: number;
+  quantity_available: number;
+  insufficient_stock: boolean;
+  origin_zone: string;
+  destination_zone: string;
+  assignments: AITripAssignment[];
+  total_trips: number;
+  total_forklifts_used: number;
+  makespan_s: number;
+}
+
+export interface AIForkliftCapacity {
+  id: number;
+  name: string;
+  status: string;
+  capacity: number;
+}

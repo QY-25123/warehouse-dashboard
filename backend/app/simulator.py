@@ -236,13 +236,8 @@ async def _tick(pool: asyncpg.Pool, manager: ConnectionManager) -> None:
     async with pool.acquire() as conn:
         await _init_forklift_cache(conn)
         await _init_task_cache(conn)
-        if _tick_count % 10 == 0:
-            msgs += await _create_tasks(conn)
         msgs += await _assign_tasks(conn)
         msgs += await _advance_tasks(conn)
-        msgs += await _recover_sensors(conn)
-        if _tick_count % 30 == 0:
-            msgs += await _inject_sensor_fault(conn)
         msgs += await _check_alerts(conn)
         if _tick_count % 300 == 0:
             await conn.execute(
@@ -420,87 +415,36 @@ async def _select_inventory_item(
 
 async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
     msgs: list[dict] = []
+
+    # ── Activate AI-pre-assigned tasks (forklift already chosen by the planner) ─
     try:
-        pending = await conn.fetch(
-            "SELECT id, type::text AS type, origin_zone, destination_zone, inventory_item_id "
-            "FROM tasks WHERE status='pending' AND forklift_id IS NULL ORDER BY created_at"
+        pre_assigned = await conn.fetch(
+            "SELECT id, type::text AS type, forklift_id, origin_zone, destination_zone, "
+            "       inventory_item_id "
+            "FROM tasks WHERE status='pending' AND forklift_id IS NOT NULL ORDER BY created_at"
         )
     except Exception as exc:
-        logger.warning("Fetch for assignment failed: %s", exc)
-        return msgs
-    idle = [f for f in _forklift_cache.values() if f['status'] == 'idle']
+        logger.warning("Fetch for pre-assigned tasks failed: %s", exc)
+        pre_assigned = []
 
-    # Hungarian algorithm: build a cost matrix [forklifts × tasks] where each
-    # cell is the Euclidean distance from the forklift's current position to the
-    # task's origin zone, then find the globally optimal assignment that minimises
-    # total travel distance across all pairs simultaneously.
-    n_forks, n_tasks = len(idle), len(pending)
-    pairs: list[tuple[dict, dict]] = []
-
-    if n_forks > 0 and n_tasks > 0:
-        cost = np.zeros((n_forks, n_tasks))
-        for fi, fork in enumerate(idle):
-            for ti, task in enumerate(pending):
-                zx, zy = _ZONE_COORDS.get(task['origin_zone'], (50.0, 50.0))
-                cost[fi, ti] = ((fork['x'] - zx) ** 2 + (fork['y'] - zy) ** 2) ** 0.5
-
-        fork_indices, task_indices = linear_sum_assignment(cost)
-        for fi, ti in zip(fork_indices, task_indices):
-            pairs.append((pending[ti], idle[fi]))
-
-    for task, fork in pairs:
-        tid, fid = task['id'], fork['id']
-        t_type = task['type']
-
-        # Outbound: verify the item still has stock before assigning a forklift.
-        # Between creation and assignment, an outbound task from another task may
-        # have depleted the item to zero.
-        if t_type == 'outbound' and task['inventory_item_id'] is not None:
-            qty = await conn.fetchval(
-                "SELECT quantity FROM inventory WHERE id=$1", task['inventory_item_id'],
-            )
-            if qty is not None and qty == 0:
-                try:
-                    item_row = await conn.fetchrow(
-                        "SELECT item_name FROM inventory WHERE id=$1",
-                        task['inventory_item_id'],
-                    )
-                    await conn.execute(
-                        "UPDATE tasks SET status='out_of_stock'::task_status, "
-                        "updated_at=NOW() WHERE id=$1",
-                        tid,
-                    )
-                    await conn.execute(
-                        "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
-                        'task_out_of_stock',
-                        {
-                            'task_id': tid,
-                            'item_id': task['inventory_item_id'],
-                            'item_name': item_row['item_name'] if item_row else None,
-                            'zone': task['origin_zone'],
-                        },
-                    )
-                    msgs.append({'type': 'task_update', 'payload': {
-                        'id': tid, 'type': t_type, 'forklift_id': None,
-                        'status': 'out_of_stock',
-                        'origin_zone': task['origin_zone'],
-                        'destination_zone': task['destination_zone'],
-                    }})
-                except Exception as exc:
-                    logger.warning("Out-of-stock update for task %d failed: %s", tid, exc)
-                continue  # forklift stays idle; reassigned next tick
-
+    for task in pre_assigned:
+        tid, fid, t_type = task['id'], task['forklift_id'], task['type']
+        if fid not in _forklift_cache or _forklift_cache[fid]['status'] != 'idle':
+            # Planned forklift is now busy — release so the normal algorithm handles it
+            try:
+                await conn.execute("UPDATE tasks SET forklift_id=NULL WHERE id=$1", tid)
+            except Exception as exc:
+                logger.warning("Failed to clear pre-assignment for task %d: %s", tid, exc)
+            continue
         tx, ty = _leg1_target(t_type, task['origin_zone'], fid)
         try:
             await conn.execute(
-                "UPDATE tasks "
-                "SET status='in-progress'::task_status, forklift_id=$1, updated_at=NOW() "
-                "WHERE id=$2",
-                fid, tid,
+                "UPDATE tasks SET status='in-progress'::task_status, updated_at=NOW() WHERE id=$1",
+                tid,
             )
             await conn.execute(
-                "UPDATE forklifts "
-                "SET status='moving_empty'::forklift_status, last_updated=NOW() WHERE id=$1",
+                "UPDATE forklifts SET status='moving_empty'::forklift_status, "
+                "last_updated=NOW() WHERE id=$1",
                 fid,
             )
             _forklift_cache[fid]['status'] = 'moving_empty'
@@ -512,31 +456,21 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
             }
             await conn.execute(
                 "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
-                'task_assigned',
-                {'task_id': tid, 'forklift_id': fid},
+                'task_assigned', {'task_id': tid, 'forklift_id': fid},
             )
             _task_state[tid] = {
                 'leg': 1, 'phase': 'moving', 'remaining': 3,
                 'start_tick': _tick_count,
                 'target_x': tx, 'target_y': ty,
             }
-            msgs.append({
-                'type': 'task_update',
-                'payload': {
-                    'id': tid, 'type': t_type,
-                    'forklift_id': fid, 'status': 'in-progress',
-                    'origin_zone': task['origin_zone'],
-                    'destination_zone': task['destination_zone'],
-                },
-            })
-            msgs.append({
-                'type': 'forklift_update',
-                'payload': {
-                    'id': fid, 'name': fork['name'],
-                    'status': 'moving_empty',
-                    'x': float(fork['x']), 'y': float(fork['y']),
-                },
-            })
+            msgs.append({'type': 'task_update', 'payload': {
+                'id': tid, 'type': t_type, 'forklift_id': fid, 'status': 'in-progress',
+                'origin_zone': task['origin_zone'], 'destination_zone': task['destination_zone'],
+            }})
+            msgs.append({'type': 'forklift_update', 'payload': {
+                'id': fid, 'name': _forklift_cache[fid]['name'], 'status': 'moving_empty',
+                'x': _forklift_cache[fid]['x'], 'y': _forklift_cache[fid]['y'],
+            }})
         except Exception as exc:
             logger.warning("Assignment (task %d → forklift %d) failed: %s", tid, fid, exc)
     return msgs
@@ -1050,54 +984,6 @@ async def _inject_sensor_fault(conn: asyncpg.Connection) -> list[dict]:
 
 async def _check_alerts(conn: asyncpg.Connection) -> list[dict]:
     msgs: list[dict] = []
-
-    # ── Alert 1: Forklift inactivity ──────────────────────────────────────────
-    try:
-        inactive = await conn.fetch(
-            "SELECT f.id, f.name FROM forklifts f "
-            "WHERE f.status IN ('idle', 'error') "
-            "  AND NOT EXISTS ("
-            "    SELECT 1 FROM tasks t "
-            "    WHERE t.forklift_id = f.id AND t.status = 'in-progress'"
-            "  )"
-        )
-    except Exception as exc:
-        logger.warning("Fetch inactive forklifts failed: %s", exc)
-        inactive = []
-
-    active_ids = {r['id'] for r in inactive}
-    for fid in list(_idle_ticks.keys()):
-        if fid not in active_ids:
-            _idle_ticks.pop(fid, None)
-    for row in inactive:
-        fid = row['id']
-        _idle_ticks[fid] = _idle_ticks.get(fid, 0) + 1
-        if _idle_ticks[fid] < 15:
-            continue
-        try:
-            exists = await conn.fetchval(
-                "SELECT 1 FROM alerts WHERE message LIKE $1 AND resolved=FALSE LIMIT 1",
-                f"forklift_inactivity: forklift {fid}%",
-            )
-            if exists:
-                continue
-            msg_text = (
-                f"forklift_inactivity: forklift {fid} ({row['name']}) "
-                f"has been idle/offline for {_idle_ticks[fid]} ticks with no task assigned"
-            )
-            await conn.execute(
-                "INSERT INTO alerts (severity, message, resolved, created_at) "
-                "VALUES ('warning', $1, FALSE, NOW())",
-                msg_text,
-            )
-            await conn.execute(
-                "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
-                'alert_triggered',
-                {'forklift_id': fid, 'reason': 'forklift_inactivity', 'ticks': _idle_ticks[fid]},
-            )
-            msgs.append({'type': 'alert', 'payload': {'severity': 'warning', 'message': msg_text}})
-        except Exception as exc:
-            logger.warning("Inactivity alert for forklift %d failed: %s", fid, exc)
 
     # ── Alert 2: Route congestion ─────────────────────────────────────────────
     try:

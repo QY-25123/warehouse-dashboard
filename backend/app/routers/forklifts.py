@@ -14,7 +14,7 @@ async def list_forklifts(
 ):
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT id, name, status::text, x, y, last_updated "
+            "SELECT id, name, status::text, x, y, capacity, last_updated "
             "FROM forklifts ORDER BY id"
         )
     return [dict(r) for r in rows]
