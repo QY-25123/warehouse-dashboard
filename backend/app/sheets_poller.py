@@ -88,6 +88,22 @@ async def _import_pending_rows(conn: asyncpg.Connection, records: list[dict]) ->
         origin = (row.get("Origin Zone") or "").strip() or None
         destination = (row.get("Destination Zone") or "").strip() or None
 
+        # Validate required zones per task type
+        missing = []
+        if task_type == "outbound" and not origin:
+            missing.append("Origin Zone")
+        if task_type == "inbound" and not destination:
+            missing.append("Destination Zone")
+        if task_type == "replenishment" and not destination:
+            missing.append("Destination Zone")
+        if task_type == "relocation" and not origin:
+            missing.append("Origin Zone")
+        if task_type == "relocation" and not destination:
+            missing.append("Destination Zone")
+        if missing:
+            logger.warning("Sheet row %d: incomplete — missing %s", idx, ", ".join(missing))
+            continue
+
         # For inbound/replenishment goods come from outside so stock doesn't cap the qty
         if task_type in ("inbound", "replenishment"):
             available_qty = quantity
