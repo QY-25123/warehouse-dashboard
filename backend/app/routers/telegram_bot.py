@@ -172,39 +172,47 @@ async def _send_and_save(
 _INTENT_TOOL: dict[str, Any] = {
     "name": "confirm_intent",
     "description": (
-        "Call this when you have fully understood the manager's request and are ready "
-        "to send a concise confirmation summary. Do NOT call it if you still need "
-        "more information — ask a single clarifying question instead."
+        "Call this when you have fully understood the manager's request. "
+        "For a single item use item_query+quantity. "
+        "For multiple items in one request use the items array instead."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
             "summary": {
                 "type": "string",
-                "description": "One-line summary (e.g. 'Outbound 300 units of Safety Gloves L')",
+                "description": "One-line summary (e.g. 'Inbound 50 units each for items 1-4')",
             },
             "task_type": {
                 "type": "string",
                 "enum": ["inbound", "outbound", "relocation", "replenishment"],
             },
+            "items": {
+                "type": "array",
+                "description": "Use for multiple items in one request",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "item_query": {"type": "string"},
+                        "quantity": {"type": "integer"},
+                        "origin_zone": {"type": "string"},
+                        "destination_zone": {"type": "string"},
+                    },
+                    "required": ["item_query", "quantity"],
+                },
+            },
             "item_query": {
                 "type": "string",
-                "description": "Item name as the manager described it",
+                "description": "Item name — for single-item requests only",
             },
             "quantity": {
                 "type": "integer",
-                "description": "Number of units to move",
+                "description": "Units to move — for single-item requests only",
             },
-            "origin_zone": {
-                "type": "string",
-                "description": "Pickup zone (e.g. 'A1', 'DOCK') — omit if task type implies it",
-            },
-            "destination_zone": {
-                "type": "string",
-                "description": "Delivery zone (e.g. 'SHIP', 'B3') — omit if task type implies it",
-            },
+            "origin_zone": {"type": "string"},
+            "destination_zone": {"type": "string"},
         },
-        "required": ["summary", "task_type", "item_query", "quantity"],
+        "required": ["summary", "task_type"],
     },
 }
 
@@ -218,11 +226,12 @@ Warehouse task types:
 - replenishment: STOR (storage) → low-stock zone
 
 Rules:
-1. When you fully understand the task (type, item name, quantity), call confirm_intent immediately.
-2. If key info is missing, ask ONE short clarifying question.
-3. Keep messages brief — this is a chat app.
-4. Do NOT ask for zones when the task type already implies them (outbound → SHIP, inbound → from DOCK).
-5. Never mention tools or internal processes.\
+1. When you fully understand the task, call confirm_intent immediately.
+2. For multiple items in one message (e.g. "item 1 2 3 4, 50 units each inbound"), use the items array in confirm_intent — do NOT split into separate conversations.
+3. If key info is missing, ask ONE short clarifying question.
+4. Keep messages brief — this is a chat app.
+5. Do NOT ask for zones when the task type already implies them (outbound → SHIP, inbound → from DOCK).
+6. Never mention tools or internal processes.\
 """
 
 
@@ -235,10 +244,11 @@ async def _run_intent_agent(claude_messages: list[dict], inventory: list[dict] |
 
     system = _INTENT_SYSTEM
     if inventory:
-        lines = ["\nInventory reference (managers may refer to items by number):"]
+        lines = ["\nINVENTORY LIST (managers refer to items by their number — ALWAYS resolve numbers to names using this list):"]
         for i, item in enumerate(inventory, 1):
             lines.append(f"{i}. {item['item_name']} (Zone {item['location_zone']}, qty: {item['quantity']})")
-        system += "\n".join(lines)
+        lines.append("\nIMPORTANT: If the manager says 'item 1' or 'item 3', look up that number above and use the actual item name. Never ask the manager to clarify item numbers — resolve them yourself.")
+        system += "\n" + "\n".join(lines)
 
     client = _anthropic.AsyncAnthropic(api_key=api_key)
     response = await client.messages.create(
@@ -273,26 +283,33 @@ def _fmt_seconds(s: int) -> str:
 
 def _format_plan(plan: dict) -> str:
     lines = [
-        "✅ <b>Plan Ready</b>\n",
         f"📦 <b>{plan['quantity_planned']} units</b> of {plan['item_name']}",
-        f"📍 {plan['origin_zone']} → {plan['destination_zone']} <i>({plan['task_type'].capitalize()})</i>\n",
-        "<b>Forklift Assignments:</b>",
+        f"📍 {plan['origin_zone']} → {plan['destination_zone']} <i>({plan['task_type'].capitalize()})</i>",
     ]
     for a in plan["assignments"]:
         lines.append(
-            f"• {a['forklift_name']}: {a['trips']} trip(s) · "
+            f"  • {a['forklift_name']}: {a['trips']} trip(s) · "
             f"{a['units_assigned']} units · ~{_fmt_seconds(a['estimated_seconds'])}"
         )
-    lines += [
-        f"\n⏱ <b>Est. completion: {_fmt_seconds(plan['makespan_s'])}</b>",
-        f"📋 {plan['total_trips']} task(s) will be created",
-    ]
+    lines.append(f"  ⏱ Est. {_fmt_seconds(plan['makespan_s'])} · {plan['total_trips']} task(s)")
     if plan.get("insufficient_stock"):
         lines.append(
-            f"\n⚠ Only {plan['quantity_available']} units available "
-            f"(you requested {plan['quantity_requested']})."
+            f"  ⚠ Only {plan['quantity_available']} available "
+            f"(requested {plan['quantity_requested']})"
         )
-    lines.append("\nReply <b>YES</b> to execute or <b>CANCEL</b> to abort.")
+    return "\n".join(lines)
+
+
+def _format_plans(plans: list[dict], errors: list[str] | None = None) -> str:
+    total_tasks = sum(p["total_trips"] for p in plans)
+    lines = [f"✅ <b>Plan Ready — {len(plans)} item(s), {total_tasks} task(s) total</b>\n"]
+    for i, plan in enumerate(plans, 1):
+        lines.append(f"<b>{i}.</b> {_format_plan(plan)}")
+        lines.append("")
+    if errors:
+        lines.append("⚠ Could not plan: " + ", ".join(errors))
+        lines.append("")
+    lines.append("Reply <b>YES</b> to execute all or <b>CANCEL</b> to abort.")
     return "\n".join(lines)
 
 
@@ -432,54 +449,67 @@ async def _handle_confirmed(chat_id: str, session: dict, pool: asyncpg.Pool) -> 
             extra_ws={"state": "generating"},
         )
 
-    zone_hint = ""
-    if intent.get("origin_zone") and intent.get("destination_zone"):
-        zone_hint = f" from {intent['origin_zone']} to {intent['destination_zone']}"
-    elif intent.get("origin_zone"):
-        zone_hint = f" from {intent['origin_zone']}"
-    elif intent.get("destination_zone"):
-        zone_hint = f" to {intent['destination_zone']}"
+    # Normalise to a list of item intents
+    task_type = intent["task_type"]
+    raw_items = intent.get("items")
+    if raw_items:
+        item_intents = [{"task_type": task_type, **it} for it in raw_items]
+    else:
+        item_intents = [{
+            "task_type": task_type,
+            "item_query": intent.get("item_query", ""),
+            "quantity": intent.get("quantity", 0),
+            "origin_zone": intent.get("origin_zone"),
+            "destination_zone": intent.get("destination_zone"),
+        }]
 
-    planning_msg = (
-        f"{intent['task_type']} {intent['quantity']} units "
-        f"of {intent['item_query']}{zone_hint}"
-    )
+    plans: list[dict] = []
+    errors: list[str] = []
 
-    try:
-        async with pool.acquire() as conn:
-            result = await _run_planning_agent(planning_msg, conn)
-    except Exception as exc:
-        logger.error("Planning agent error for %s: %s", chat_id, exc)
+    for it in item_intents:
+        zone_hint = ""
+        if it.get("origin_zone") and it.get("destination_zone"):
+            zone_hint = f" from {it['origin_zone']} to {it['destination_zone']}"
+        elif it.get("origin_zone"):
+            zone_hint = f" from {it['origin_zone']}"
+        elif it.get("destination_zone"):
+            zone_hint = f" to {it['destination_zone']}"
+
+        planning_msg = f"{it['task_type']} {it['quantity']} units of {it['item_query']}{zone_hint}"
+
+        try:
+            async with pool.acquire() as conn:
+                result = await _run_planning_agent(planning_msg, conn)
+        except Exception as exc:
+            logger.error("Planning agent error for %s: %s", chat_id, exc)
+            errors.append(f"{it['item_query']}: {exc}")
+            continue
+
+        plan = result.get("plan")
+        if not plan or not plan.get("ok"):
+            errors.append(f"{it['item_query']}: {(plan or {}).get('error', 'no plan')}")
+        else:
+            plans.append(plan)
+
+    if not plans:
         async with pool.acquire() as conn:
             await _update_session(conn, session_id, "idle", pending_plan=None)
             await _send_and_save(
                 conn, session_id, chat_id,
-                f"Sorry, the planner ran into an error: {exc}. Please try again.",
+                f"⚠ Could not generate plans:\n" + "\n".join(errors),
                 extra_ws={"state": "idle"},
             )
         return
 
-    plan = result.get("plan")
-    if not plan or not plan.get("ok"):
-        error = (plan or {}).get("error", "Could not generate a plan for this request.")
-        async with pool.acquire() as conn:
-            await _update_session(conn, session_id, "idle", pending_plan=None)
-            await _send_and_save(
-                conn, session_id, chat_id,
-                f"⚠ {error}",
-                extra_ws={"state": "idle"},
-            )
-        return
-
-    plan_text = _format_plan(plan)
+    plan_text = _format_plans(plans, errors)
     async with pool.acquire() as conn:
         await _update_session(
             conn, session_id, "awaiting_plan_approval",
-            pending_plan={"intent": intent, "plan": plan},
+            pending_plan={"intent": intent, "plans": plans},
         )
         await _send_and_save(
             conn, session_id, chat_id, plan_text,
-            extra_ws={"state": "awaiting_plan_approval", "plan": plan},
+            extra_ws={"state": "awaiting_plan_approval", "plans": plans},
         )
 
 
@@ -488,7 +518,9 @@ async def _handle_execute(chat_id: str, session: dict, pool: asyncpg.Pool) -> No
     pending    = session.get("pending_plan") or {}
     plan       = pending.get("plan")
 
-    if not plan or not plan.get("ok"):
+    # Support both multi-plan (new) and single-plan (legacy) pending_plan formats
+    plans = pending.get("plans") or ([plan] if plan and plan.get("ok") else None)
+    if not plans:
         async with pool.acquire() as conn:
             await _update_session(conn, session_id, "idle", pending_plan=None)
             await _send_and_save(
@@ -504,37 +536,37 @@ async def _handle_execute(chat_id: str, session: dict, pool: asyncpg.Pool) -> No
     try:
         async with pool.acquire() as conn:
             async with conn.transaction():
-                for assignment in plan.get("assignments", []):
-                    per_trip_qty = assignment.get("capacity", 50)
-                    fid = assignment.get("forklift_id")
-                    for _ in range(assignment["trips"]):
-                        row = await conn.fetchrow(
-                            "INSERT INTO tasks "
-                            "(type, status, forklift_id, origin_zone, destination_zone, "
-                            " inventory_item_id, planned_quantity, created_at, updated_at) "
-                            "VALUES ($1::task_type, 'pending', $2, $3, $4, $5, $6, NOW(), NOW()) "
-                            "RETURNING id",
-                            plan["task_type"], fid, plan["origin_zone"],
-                            plan["destination_zone"], plan["item_id"], per_trip_qty,
-                        )
-                        task_ids.append(row["id"])
+                for plan in plans:
+                    for assignment in plan.get("assignments", []):
+                        per_trip_qty = assignment.get("capacity", 50)
+                        fid = assignment.get("forklift_id")
+                        for _ in range(assignment["trips"]):
+                            row = await conn.fetchrow(
+                                "INSERT INTO tasks "
+                                "(type, status, forklift_id, origin_zone, destination_zone, "
+                                " inventory_item_id, planned_quantity, created_at, updated_at) "
+                                "VALUES ($1::task_type, 'pending', $2, $3, $4, $5, $6, NOW(), NOW()) "
+                                "RETURNING id",
+                                plan["task_type"], fid, plan["origin_zone"],
+                                plan["destination_zone"], plan["item_id"], per_trip_qty,
+                            )
+                            task_ids.append(row["id"])
 
                 await conn.execute(
                     "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
                     "telegram_task_execution",
                     {
                         "chat_id": chat_id,
-                        "task_type": plan["task_type"],
-                        "item_name": plan.get("item_name"),
-                        "quantity_planned": plan.get("quantity_planned"),
                         "total_trips": len(task_ids),
                         "task_ids": task_ids,
+                        "items": [p.get("item_name") for p in plans],
                     },
                 )
 
+        item_names = ", ".join(p.get("item_name", "") for p in plans)
         reply = (
-            f"✅ <b>Done!</b> {len(task_ids)} task(s) created.\n"
-            f"Forklifts are being dispatched to handle <b>{plan['item_name']}</b>.\n\n"
+            f"✅ <b>Done!</b> {len(task_ids)} task(s) created for {len(plans)} item(s).\n"
+            f"Forklifts are being dispatched to handle <b>{item_names}</b>.\n\n"
             f"Track progress on the dashboard."
         )
         async with pool.acquire() as conn:
