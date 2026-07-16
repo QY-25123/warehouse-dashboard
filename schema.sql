@@ -59,12 +59,16 @@ CREATE TABLE IF NOT EXISTS tasks (
     destination_zone  VARCHAR(4),
     inventory_item_id INTEGER      REFERENCES inventory(id),
     planned_quantity  INTEGER,
+    source            TEXT,
+    sheet_row_index   INTEGER,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- Add planned_quantity to existing deployments (idempotent)
+-- Add columns to existing deployments (idempotent)
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS planned_quantity INTEGER;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sheet_row_index INTEGER;
 
 CREATE TABLE IF NOT EXISTS events (
     id        SERIAL PRIMARY KEY,
@@ -86,6 +90,7 @@ CREATE TABLE IF NOT EXISTS alerts (
 CREATE INDEX IF NOT EXISTS idx_tasks_forklift_id    ON tasks(forklift_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status         ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_inventory_item ON tasks(inventory_item_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_sheet_source   ON tasks(source, sheet_row_index) WHERE source IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_inventory_zone       ON inventory(location_zone);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp     ON events(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_type          ON events(type);

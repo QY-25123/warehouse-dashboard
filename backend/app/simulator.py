@@ -475,6 +475,78 @@ async def _assign_tasks(conn: asyncpg.Connection) -> list[dict]:
             }})
         except Exception as exc:
             logger.warning("Assignment (task %d → forklift %d) failed: %s", tid, fid, exc)
+
+    # ── Auto-assign pending tasks that have no forklift yet ───────────────────
+    try:
+        unassigned = await conn.fetch(
+            "SELECT id, type::text AS type, origin_zone, destination_zone, "
+            "       inventory_item_id, planned_quantity "
+            "FROM tasks WHERE status='pending' AND forklift_id IS NULL ORDER BY created_at"
+        )
+    except Exception as exc:
+        logger.warning("Fetch for unassigned tasks failed: %s", exc)
+        unassigned = []
+
+    idle_fids = [fid for fid, fc in _forklift_cache.items() if fc['status'] == 'idle']
+
+    for task in unassigned:
+        if not idle_fids:
+            break
+        tid    = task['id']
+        t_type = task['type']
+        origin = task['origin_zone'] or 'A1'
+        ox, oy = _ZONE_COORDS.get(origin, (50.0, 50.0))
+        fid = min(
+            idle_fids,
+            key=lambda f: math.sqrt(
+                (_forklift_cache[f]['x'] - ox) ** 2 +
+                (_forklift_cache[f]['y'] - oy) ** 2
+            ),
+        )
+        tx, ty = _leg1_target(t_type, origin, fid)
+        try:
+            await conn.execute(
+                "UPDATE tasks SET forklift_id=$1, status='in-progress'::task_status, "
+                "updated_at=NOW() WHERE id=$2",
+                fid, tid,
+            )
+            await conn.execute(
+                "UPDATE forklifts SET status='moving_empty'::forklift_status, "
+                "last_updated=NOW() WHERE id=$1",
+                fid,
+            )
+            _forklift_cache[fid]['status'] = 'moving_empty'
+            idle_fids.remove(fid)
+            _task_cache[tid] = {
+                'id': tid, 'type': t_type, 'forklift_id': fid,
+                'origin_zone': task['origin_zone'],
+                'destination_zone': task['destination_zone'],
+                'inventory_item_id': task['inventory_item_id'],
+                'planned_quantity': task['planned_quantity'],
+            }
+            await conn.execute(
+                "INSERT INTO events (type, payload, timestamp) VALUES ($1, $2, NOW())",
+                'task_assigned', {'task_id': tid, 'forklift_id': fid},
+            )
+            _task_state[tid] = {
+                'leg': 1, 'phase': 'moving', 'remaining': 3,
+                'start_tick': _tick_count,
+                'target_x': tx, 'target_y': ty,
+            }
+            msgs.append({'type': 'task_update', 'payload': {
+                'id': tid, 'type': t_type, 'forklift_id': fid, 'status': 'in-progress',
+                'origin_zone': task['origin_zone'],
+                'destination_zone': task['destination_zone'],
+            }})
+            msgs.append({'type': 'forklift_update', 'payload': {
+                'id': fid, 'name': _forklift_cache[fid]['name'],
+                'status': 'moving_empty',
+                'x': _forklift_cache[fid]['x'], 'y': _forklift_cache[fid]['y'],
+            }})
+            logger.info("Auto-assigned task %d (%s) → forklift %d", tid, t_type, fid)
+        except Exception as exc:
+            logger.warning("Auto-assignment task %d failed: %s", tid, exc)
+
     return msgs
 
 

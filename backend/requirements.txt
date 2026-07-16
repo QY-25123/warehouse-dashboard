@@ -9,3 +9,5 @@ supabase==2.13.0
 httpx>=0.27.0
 scipy>=1.13.0
 anthropic>=0.40.0
+gspread>=6.0.0
+google-auth-oauthlib>=1.0.0
