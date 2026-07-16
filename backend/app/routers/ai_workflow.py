@@ -412,9 +412,12 @@ async def execute_plan(
     async with pool.acquire() as conn:
         async with conn.transaction():
             for assignment in assignments:
-                per_trip_qty = assignment.get("capacity", 50)
-                fid = assignment.get("forklift_id")
-                for _ in range(assignment["trips"]):
+                fid            = assignment.get("forklift_id")
+                trips          = assignment["trips"]
+                capacity       = assignment.get("capacity", 50)
+                units_assigned = assignment.get("units_assigned", capacity * trips)
+                for i in range(trips):
+                    per_trip_qty = capacity if i < trips - 1 else units_assigned - capacity * (trips - 1)
                     row = await conn.fetchrow(
                         "INSERT INTO tasks "
                         "(type, status, forklift_id, origin_zone, destination_zone, "

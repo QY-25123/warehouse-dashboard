@@ -538,9 +538,12 @@ async def _handle_execute(chat_id: str, session: dict, pool: asyncpg.Pool) -> No
             async with conn.transaction():
                 for plan in plans:
                     for assignment in plan.get("assignments", []):
-                        per_trip_qty = assignment.get("capacity", 50)
-                        fid = assignment.get("forklift_id")
-                        for _ in range(assignment["trips"]):
+                        fid            = assignment.get("forklift_id")
+                        trips          = assignment["trips"]
+                        capacity       = assignment.get("capacity", 50)
+                        units_assigned = assignment.get("units_assigned", capacity * trips)
+                        for i in range(trips):
+                            per_trip_qty = capacity if i < trips - 1 else units_assigned - capacity * (trips - 1)
                             row = await conn.fetchrow(
                                 "INSERT INTO tasks "
                                 "(type, status, forklift_id, origin_zone, destination_zone, "
