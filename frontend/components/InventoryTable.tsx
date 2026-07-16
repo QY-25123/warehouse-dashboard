@@ -120,6 +120,7 @@ export function InventoryTable({ initialItems }: Props) {
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <th className="px-4 py-3 w-12">#</th>
               <th className="px-4 py-3">Item Name</th>
               <th className="px-4 py-3">Quantity</th>
               <th className="px-4 py-3">Zone</th>
@@ -135,7 +136,7 @@ export function InventoryTable({ initialItems }: Props) {
                 </td>
               </tr>
             ) : (
-              visible.map((item) => {
+              visible.map((item, idx) => {
                 const isZero = item.quantity === 0;
                 const isLow  = !isZero && item.quantity <= 10;
                 return (
@@ -145,6 +146,9 @@ export function InventoryTable({ initialItems }: Props) {
                     title="View history & tasks"
                     onClick={() => router.push(`/inventory/${item.id}`)}
                   >
+                    <td className="px-4 py-3 text-xs font-mono text-gray-400 w-12">
+                      {idx + 1}
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-800">
                       {item.item_name}
                     </td>
