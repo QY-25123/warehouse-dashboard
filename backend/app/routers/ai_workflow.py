@@ -331,7 +331,12 @@ async def _run_agent(message: str, conn: asyncpg.Connection) -> dict[str, Any]:
                 item_row = await conn.fetchrow(
                     "SELECT quantity FROM inventory WHERE id=$1", inp["item_id"],
                 )
-                available_qty = int(item_row["quantity"]) if item_row else 0
+                # For inbound/replenishment, goods come from external sources (DOCK/STOR)
+                # so current stock does not limit how much can be moved.
+                if inp["task_type"] in ("inbound", "replenishment"):
+                    available_qty = inp["quantity"]
+                else:
+                    available_qty = int(item_row["quantity"]) if item_row else 0
 
                 if forklifts_cache is None:
                     forklifts_cache = await _tool_get_forklifts(conn)
