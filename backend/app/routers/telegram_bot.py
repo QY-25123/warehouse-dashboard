@@ -226,18 +226,25 @@ Rules:
 """
 
 
-async def _run_intent_agent(claude_messages: list[dict]) -> dict[str, Any]:
+async def _run_intent_agent(claude_messages: list[dict], inventory: list[dict] | None = None) -> dict[str, Any]:
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key:
         return {"intent": None, "text": "AI is not configured. Please contact your administrator."}
 
     import anthropic as _anthropic  # noqa: PLC0415
 
+    system = _INTENT_SYSTEM
+    if inventory:
+        lines = ["\nInventory reference (managers may refer to items by number):"]
+        for i, item in enumerate(inventory, 1):
+            lines.append(f"{i}. {item['item_name']} (Zone {item['location_zone']}, qty: {item['quantity']})")
+        system += "\n".join(lines)
+
     client = _anthropic.AsyncAnthropic(api_key=api_key)
     response = await client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=512,
-        system=_INTENT_SYSTEM,
+        system=system,
         tools=[_INTENT_TOOL],
         messages=claude_messages,
     )
@@ -374,8 +381,12 @@ async def _handle_chatting(chat_id: str, session: dict, pool: asyncpg.Pool) -> N
     async with pool.acquire() as conn:
         await _update_session(conn, session_id, "chatting")
         messages = await _get_messages(conn, session_id)
+        inventory_rows = await conn.fetch(
+            "SELECT item_name, location_zone, quantity FROM inventory ORDER BY id ASC"
+        )
+    inventory = [dict(r) for r in inventory_rows]
 
-    result = await _run_intent_agent(_to_claude_messages(messages))
+    result = await _run_intent_agent(_to_claude_messages(messages), inventory=inventory)
 
     if result["intent"]:
         intent = result["intent"]
