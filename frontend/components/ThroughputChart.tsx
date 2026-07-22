@@ -15,7 +15,7 @@ export function ThroughputChart({ data }: { data: ThroughputBucket[] }) {
   if (data.length === 0 || allZero) {
     return (
       <div style={{ height: VH, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#374151', fontSize: 13 }}>No completions recorded yet — data appears here after the first task completes</p>
+        <p style={{ color: '#9E9AAA', fontSize: 13 }}>No completions recorded yet — data appears here after the first task completes</p>
       </div>
     );
   }
@@ -38,12 +38,12 @@ export function ThroughputChart({ data }: { data: ThroughputBucket[] }) {
     >
       <defs>
         <linearGradient id="tpc-bar" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#3B82F6" />
-          <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.7" />
+          <stop offset="0%"   stopColor="#22D3EE" />
+          <stop offset="100%" stopColor="#0891B2" stopOpacity="0.7" />
         </linearGradient>
         <linearGradient id="tpc-bar-hi" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#60A5FA" />
-          <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.7" />
+          <stop offset="0%"   stopColor="#67E8F9" />
+          <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.8" />
         </linearGradient>
       </defs>
 
@@ -54,11 +54,11 @@ export function ThroughputChart({ data }: { data: ThroughputBucket[] }) {
           <g key={v}>
             <line
               x1={PL} y1={y} x2={PL + CW} y2={y}
-              stroke="#1E2130" strokeWidth={v === 0 ? 0.5 : 0.4}
+              stroke="#2D293D" strokeWidth={v === 0 ? 0.8 : 0.5}
             />
             <text
               x={PL - 6} y={y + 4}
-              textAnchor="end" fontSize={10} fill="#374151"
+              textAnchor="end" fontSize={10} fill="#7B778A"
             >
               {v}
             </text>
@@ -100,14 +100,14 @@ export function ThroughputChart({ data }: { data: ThroughputBucket[] }) {
         const hour = new Date(d.bucket).getHours();
         return (
           <text key={d.bucket} x={x} y={VH - 8}
-            textAnchor="middle" fontSize={10} fill="#374151">
+            textAnchor="middle" fontSize={10} fill="#7B778A">
             {`${hour.toString().padStart(2, '0')}:00`}
           </text>
         );
       })}
 
       {/* "now" label at far right */}
-      <text x={PL + CW} y={VH - 8} textAnchor="end" fontSize={10} fill="#4B5563">
+      <text x={PL + CW} y={VH - 8} textAnchor="end" fontSize={10} fill="#5E5A70">
         now
       </text>
     </svg>

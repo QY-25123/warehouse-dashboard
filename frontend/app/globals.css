@@ -1,3 +1,102 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Steel & Signal – committed dark theme ──────────────────────────────────
+   Ground: #13111A  Surface: #1D1A26  Border: #2D293D
+   Accent: #FB923C  Data/Charts: #22D3EE
+   Positive: #4ADE80  Warning: #FDE047  Critical: #F87171
+   Text: #FAF0FF  Sub: #9E9AAA  Muted: #7B778A
+   ─────────────────────────────────────────────────────────────────────────── */
+
+body {
+  background-color: #13111A;
+  color: #FAF0FF;
+}
+
+/* ── Structural grounds ─────────────────────────────────────────────────── */
+.bg-white        { background-color: #1D1A26 !important; }
+.bg-gray-50      { background-color: #1F1C2B !important; }
+.bg-gray-100     { background-color: #252033 !important; }
+.border-gray-50  { border-color:     #1F1C2B !important; }
+.border-gray-100 { border-color:     #252033 !important; }
+.border-gray-200 { border-color:     #2D293D !important; }
+.border-gray-300 { border-color:     #3A3550 !important; }
+
+/* ── Gray text scale ────────────────────────────────────────────────────── */
+.text-gray-900 { color: #FAF0FF !important; }
+.text-gray-800 { color: #EDE8F5 !important; }
+.text-gray-700 { color: #D8D0E8 !important; }
+.text-gray-600 { color: #9E9AAA !important; }
+.text-gray-500 { color: #7B778A !important; }
+.text-gray-400 { color: #5E5A70 !important; }
+.text-gray-300 { color: #4A4660 !important; }
+
+/* ── Hover states ───────────────────────────────────────────────────────── */
+.hover\:bg-gray-50:hover    { background-color: #1F1C2B !important; }
+.hover\:bg-gray-100:hover   { background-color: #252033 !important; }
+.hover\:bg-gray-200:hover   { background-color: #2D293D !important; }
+.hover\:text-gray-900:hover { color: #FAF0FF   !important; }
+
+/* ── Dividers ───────────────────────────────────────────────────────────── */
+.divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: #1F1C2B !important; }
+.divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #252033 !important; }
+
+/* ── Semantic badge backgrounds (light -50 → dark equivalents) ──────────── */
+.bg-blue-50    { background-color: #3B82F615 !important; }
+.bg-sky-50     { background-color: #0EA5E915 !important; }
+.bg-green-50   { background-color: #22C55E15 !important; }
+.bg-teal-50    { background-color: #14B8A615 !important; }
+.bg-yellow-50  { background-color: #FDE04715 !important; }
+.bg-amber-50   { background-color: #F59E0B15 !important; }
+.bg-red-50     { background-color: #EF444415 !important; }
+.bg-violet-50  { background-color: #8B5CF615 !important; }
+.bg-purple-50  { background-color: #A855F715 !important; }
+
+/* Inventory row hover */
+.hover\:bg-blue-50:hover { background-color: #22D3EE0F !important; }
+
+/* ── Semantic text (keep mid-tone, shift -700/-600 to bright equivalents) ── */
+.text-blue-700   { color: #60A5FA !important; }
+.text-blue-600   { color: #60A5FA !important; }
+.text-sky-700    { color: #38BDF8 !important; }
+.text-green-700  { color: #4ADE80 !important; }
+.text-green-600  { color: #4ADE80 !important; }
+.text-teal-700   { color: #2DD4BF !important; }
+.text-yellow-700 { color: #FDE047 !important; }
+.text-yellow-600 { color: #FDE047 !important; }
+.text-amber-700  { color: #FCD34D !important; }
+.text-amber-600  { color: #FCD34D !important; }
+.text-amber-800  { color: #FCD34D !important; }
+.text-red-700    { color: #F87171 !important; }
+.text-red-600    { color: #F87171 !important; }
+.text-violet-700 { color: #A78BFA !important; }
+.text-purple-700 { color: #C084FC !important; }
+
+/* ── Semantic borders ───────────────────────────────────────────────────── */
+.border-blue-200   { border-color: #3B82F640 !important; }
+.border-sky-200    { border-color: #0EA5E940 !important; }
+.border-green-200  { border-color: #22C55E40 !important; }
+.border-teal-200   { border-color: #14B8A640 !important; }
+.border-yellow-200 { border-color: #FDE04740 !important; }
+.border-amber-200  { border-color: #F59E0B40 !important; }
+.border-amber-300  { border-color: #F59E0B60 !important; }
+.border-red-200    { border-color: #EF444440 !important; }
+.border-violet-200 { border-color: #8B5CF640 !important; }
+.border-purple-200 { border-color: #A855F740 !important; }
+
+/* ── Focus rings – change blue to accent orange ─────────────────────────── */
+.focus\:ring-blue-500:focus    { --tw-ring-color: #FB923C80 !important; }
+.focus\:border-blue-500:focus  { border-color:    #FB923C   !important; }
+.focus\:ring-2:focus           { --tw-ring-shadow: 0 0 0 2px var(--tw-ring-color, #FB923C80) !important; }
+
+/* ── Checkbox accent ────────────────────────────────────────────────────── */
+.accent-blue-600 { accent-color: #FB923C !important; }
+
+/* ── Select / input backgrounds (native elements) ───────────────────────── */
+select, input[type="search"], input[type="text"], input[type="email"], input[type="password"] {
+  color-scheme: dark;
+}
+
+/* ── Shadows – heavier on dark ──────────────────────────────────────────── */
+.shadow-sm { box-shadow: 0 1px 4px rgba(0,0,0,0.5) !important; }

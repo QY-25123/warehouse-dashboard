@@ -13,19 +13,19 @@ interface Props {
 // ── Visual constants ──────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<Task['status'], string> = {
-  'pending':      'bg-yellow-50 text-yellow-800 border-yellow-200',
-  'in-progress':  'bg-blue-50 text-blue-800 border-blue-200',
-  'completed':    'bg-green-50 text-green-800 border-green-200',
-  'delayed':      'bg-red-50 text-red-800 border-red-200',
-  'out_of_stock': 'bg-amber-50 text-amber-800 border-amber-300',
+  'pending':      'bg-[#FDE04715] text-[#FDE047] border-[#FDE04745]',
+  'in-progress':  'bg-[#22D3EE15] text-[#22D3EE] border-[#22D3EE45]',
+  'completed':    'bg-[#4ADE8015] text-[#4ADE80] border-[#4ADE8045]',
+  'delayed':      'bg-[#F8717115] text-[#F87171] border-[#F8717145]',
+  'out_of_stock': 'bg-[#FDE04715] text-[#FDE047] border-[#FDE04760]',
 };
 
 const STATUS_DOT: Record<Task['status'], string> = {
-  'pending':      'bg-yellow-400',
-  'in-progress':  'bg-blue-500',
-  'completed':    'bg-green-500',
-  'delayed':      'bg-red-500',
-  'out_of_stock': 'bg-amber-400',
+  'pending':      'bg-[#FDE047]',
+  'in-progress':  'bg-[#22D3EE]',
+  'completed':    'bg-[#4ADE80]',
+  'delayed':      'bg-[#F87171]',
+  'out_of_stock': 'bg-[#FDE047]',
 };
 
 const STATUS_LABEL: Record<Task['status'], string> = {
@@ -44,10 +44,10 @@ const TYPE_LABEL: Record<Task['type'], string> = {
 };
 
 const TYPE_BADGE: Record<Task['type'], string> = {
-  inbound:       'bg-sky-50 text-sky-700 border-sky-200',
-  outbound:      'bg-violet-50 text-violet-700 border-violet-200',
-  relocation:    'bg-amber-50 text-amber-700 border-amber-200',
-  replenishment: 'bg-teal-50 text-teal-700 border-teal-200',
+  inbound:       'bg-[#22D3EE12] text-[#38BDF8] border-[#22D3EE40]',
+  outbound:      'bg-[#A78BFA12] text-[#A78BFA] border-[#A78BFA40]',
+  relocation:    'bg-[#FCD34D12] text-[#FCD34D] border-[#FCD34D40]',
+  replenishment: 'bg-[#2DD4BF12] text-[#2DD4BF] border-[#2DD4BF40]',
 };
 
 const STATUSES = ['pending', 'in-progress', 'completed', 'delayed', 'out_of_stock'] as const;
@@ -144,8 +144,8 @@ export function TaskTable({ initialTasks }: Props) {
           onClick={() => setFilter('all')}
           className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
             filter === 'all'
-              ? 'border-gray-900 bg-gray-900 text-white'
-              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+              ? 'border-[#FB923C] bg-[#FB923C20] text-[#FB923C]'
+              : 'border-[#2D293D] bg-[#1D1A26] text-[#7B778A] hover:bg-[#252033] hover:text-[#FAF0FF]'
           }`}
         >
           All <span className="ml-1 tabular-nums">{tasks.length}</span>
@@ -158,7 +158,7 @@ export function TaskTable({ initialTasks }: Props) {
             className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
               filter === s
                 ? `${STATUS_BADGE[s]} border-current`
-                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                : 'border-[#2D293D] bg-[#1D1A26] text-[#7B778A] hover:bg-[#252033] hover:text-[#FAF0FF]'
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${STATUS_DOT[s]}`} />
@@ -215,11 +215,11 @@ export function TaskTable({ initialTasks }: Props) {
                         ? `${task.item_name ?? 'Item'} has 0 quantity in zone ${task.origin_zone ?? '?'}`
                         : (task.item_name ?? undefined)}>
                     {task.status === 'out_of_stock' ? (
-                      <span className="text-amber-600 line-through">
+                      <span className="text-[#FCD34D] line-through">
                         {task.item_name ?? '—'}
                       </span>
                     ) : (
-                      <span className="text-gray-700">{task.item_name ?? '—'}</span>
+                      <span className="text-[#D8D0E8]">{task.item_name ?? '—'}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">

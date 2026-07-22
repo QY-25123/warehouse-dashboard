@@ -39,16 +39,16 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: '#13111A' }}>
+      <div className="w-full max-w-sm space-y-6 rounded-xl p-8" style={{ background: '#1D1A26', border: '1px solid #2D293D', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }}>
         <div className="text-center">
-          <h1 className="text-xl font-bold text-gray-900">Warehouse Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to continue</p>
+          <h1 className="text-xl font-bold" style={{ color: '#FB923C' }}>Warehouse Dashboard</h1>
+          <p className="mt-1 text-sm" style={{ color: '#7B778A' }}>Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium" style={{ color: '#9E9AAA' }}>
               Email
             </label>
             <input
@@ -58,12 +58,13 @@ function LoginForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1"
+              style={{ background: '#13111A', border: '1px solid #3A3550', color: '#FAF0FF' }}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium" style={{ color: '#9E9AAA' }}>
               Password
             </label>
             <input
@@ -73,20 +74,22 @@ function LoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1"
+              style={{ background: '#13111A', border: '1px solid #3A3550', color: '#FAF0FF' }}
             />
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+            <p className="rounded-lg px-3 py-2 text-sm" style={{ background: '#F8717115', color: '#F87171', border: '1px solid #F8717140' }}>{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: '#FB923C', color: '#13111A' }}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>

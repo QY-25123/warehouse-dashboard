@@ -8,16 +8,16 @@ import { getClientToken } from '@/lib/client-auth';
 import type { AnalyticsSummary, ThroughputBucket, ForkliftTaskCount, Alert } from '@/lib/types';
 
 const PANEL: CSSProperties = {
-  background: '#FFFFFF',
-  border: '1px solid #E5E7EB',
+  background: '#1D1A26',
+  border: '1px solid #2D293D',
   borderRadius: 12,
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
   padding: '20px 24px',
 };
 
 const SECTION_LABEL: CSSProperties = {
   fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
-  color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 16,
+  color: '#7B778A', textTransform: 'uppercase', marginBottom: 16,
 };
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
@@ -48,7 +48,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
   if (data.length === 0) {
     return (
       <div style={{ padding: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#374151', fontSize: 13 }}>No completed tasks in the last 24 hours yet</p>
+        <p style={{ color: '#9E9AAA', fontSize: 13 }}>No completed tasks in the last 24 hours yet</p>
       </div>
     );
   }
@@ -79,7 +79,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
             <text
               x={LABEL_W - 8} y={y + ROW_H / 2 + 4}
               textAnchor="end" fontSize={11}
-              fill={isTop ? '#111827' : '#6B7280'}
+              fill={isTop ? '#FAF0FF' : '#9E9AAA'}
               fontWeight={isTop ? 600 : 400}
             >
               {d.name}
@@ -89,16 +89,16 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
             <rect
               x={trackX} y={y + 6}
               width={BAR_AREA} height={16}
-              fill="#F3F4F6" rx={3}
+              fill="#2D293D" rx={3}
             />
 
             {/* Bar */}
             <rect
               x={trackX} y={y + 6}
               width={barW} height={16}
-              fill={isTop ? '#3B82F6' : '#1D4ED8'}
+              fill={isTop ? '#FB923C' : '#22D3EE'}
               rx={3}
-              opacity={0.85}
+              opacity={0.9}
             >
               <title>{`${d.name}: ${d.tasks_completed} tasks`}</title>
             </rect>
@@ -107,7 +107,7 @@ function ForkliftTasksChart({ data }: { data: ForkliftTaskCount[] }) {
             <text
               x={trackX + BAR_AREA + 8}
               y={y + ROW_H / 2 + 4}
-              fontSize={11} fill="#6B7280"
+              fontSize={11} fill="#7B778A"
               style={{ fontVariantNumeric: 'tabular-nums' }}
             >
               {d.tasks_completed}
@@ -129,7 +129,7 @@ function AlertsList({ alerts }: { alerts: Alert[] }) {
   if (sorted.length === 0) {
     return (
       <div style={{ padding: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#374151', fontSize: 13 }}>No active alerts</p>
+        <p style={{ color: '#9E9AAA', fontSize: 13 }}>No active alerts</p>
       </div>
     );
   }
@@ -159,7 +159,7 @@ function AlertsList({ alerts }: { alerts: Alert[] }) {
                 {timeAgo(a.created_at)}
               </span>
             </div>
-            <p style={{ fontSize: 11, color: '#4B5563', lineHeight: 1.5 }}>{msg}</p>
+            <p style={{ fontSize: 11, color: '#C0B8D0', lineHeight: 1.5 }}>{msg}</p>
           </div>
         );
       })}
@@ -223,31 +223,31 @@ export function DashboardClient({
   }, [lastRefresh]);
 
   const alertsAccent =
-    summary.open_alerts === 0 ? '#374151'
-    : summary.open_alerts >= 3 ? '#EF4444'
-    : '#F59E0B';
+    summary.open_alerts === 0 ? '#7B778A'
+    : summary.open_alerts >= 3 ? '#F87171'
+    : '#FDE047';
 
   const refreshLabel =
     secsAgo < 5 ? 'just now' : `${secsAgo}s ago`;
 
   return (
-    <div style={{ background: '#F9FAFB', minHeight: '100vh', borderTop: '3px solid #3B82F6' }}>
+    <div style={{ background: 'transparent', minHeight: '100vh', borderTop: '3px solid #FB923C' }}>
       <div className="mx-auto px-4 py-6 sm:px-6 sm:py-7" style={{ maxWidth: 1280 }}>
 
         {/* Page header */}
         <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#111827', letterSpacing: '0.06em' }}>
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#FAF0FF', letterSpacing: '0.06em' }}>
               OPERATIONS CENTER
             </h1>
-            <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+            <p style={{ fontSize: 12, color: '#9E9AAA', marginTop: 4 }}>
               Real-time warehouse performance metrics
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ height: 7, width: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block' }}
               className="animate-pulse" />
-            <span style={{ fontSize: 12, color: '#4B5563' }}>
+            <span style={{ fontSize: 12, color: '#9E9AAA' }}>
               Refreshed {refreshLabel} · auto-refresh 30 s
             </span>
           </div>
@@ -258,14 +258,14 @@ export function DashboardClient({
           <KpiCard
             label="Tasks / Hour"
             value={summary.tasks_per_hour}
-            accent="#10B981"
+            accent="#4ADE80"
             sub="completed in last 60 min"
           />
           <KpiCard
             label="Fleet Utilization"
             value={summary.fleet_utilization_pct}
             unit="%"
-            accent="#3B82F6"
+            accent="#22D3EE"
             sub="forklifts currently active"
           />
           <KpiCard
@@ -277,7 +277,7 @@ export function DashboardClient({
           <KpiCard
             label="Pending Tasks"
             value={summary.pending_tasks}
-            accent="#F59E0B"
+            accent="#FB923C"
             sub={`${summary.active_tasks} in progress`}
           />
         </div>

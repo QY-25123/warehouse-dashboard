@@ -13,21 +13,21 @@ interface Props {
 // ── Visual constants ──────────────────────────────────────────────────────────
 
 const SEVERITY_BADGE: Record<Alert['severity'], string> = {
-  info:     'bg-blue-50 text-blue-700 border-blue-200',
-  warning:  'bg-yellow-50 text-yellow-700 border-yellow-200',
-  critical: 'bg-red-50 text-red-700 border-red-200',
+  info:     'bg-[#60A5FA15] text-[#60A5FA] border-[#60A5FA45]',
+  warning:  'bg-[#FDE04715] text-[#FDE047] border-[#FDE04745]',
+  critical: 'bg-[#F8717115] text-[#F87171] border-[#F8717145]',
 };
 
 const SEVERITY_BAR: Record<Alert['severity'], string> = {
-  info:     'border-l-blue-400',
-  warning:  'border-l-yellow-400',
-  critical: 'border-l-red-500',
+  info:     'border-l-[#60A5FA]',
+  warning:  'border-l-[#FDE047]',
+  critical: 'border-l-[#F87171]',
 };
 
 const SEVERITY_DOT: Record<Alert['severity'], string> = {
-  info:     'bg-blue-400',
-  warning:  'bg-yellow-400',
-  critical: 'bg-red-500',
+  info:     'bg-[#60A5FA]',
+  warning:  'bg-[#FDE047]',
+  critical: 'bg-[#F87171]',
 };
 
 const SEVERITIES = ['info', 'warning', 'critical'] as const;
@@ -133,7 +133,7 @@ export function AlertPanel({ initialAlerts }: Props) {
         {SEVERITIES.map((s) => (
           <div key={s} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <p className={`text-2xl font-bold ${
-              s === 'critical' ? 'text-red-600' : s === 'warning' ? 'text-yellow-600' : 'text-blue-600'
+              s === 'critical' ? 'text-[#F87171]' : s === 'warning' ? 'text-[#FDE047]' : 'text-[#60A5FA]'
             }`}>
               {activeCounts[s]}
             </p>
@@ -148,8 +148,8 @@ export function AlertPanel({ initialAlerts }: Props) {
           onClick={() => setSeverityFilter('all')}
           className={`rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors ${
             severityFilter === 'all'
-              ? 'border-gray-900 bg-gray-900 text-white'
-              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+              ? 'border-[#FB923C] bg-[#FB923C20] text-[#FB923C]'
+              : 'border-[#2D293D] bg-[#1D1A26] text-[#7B778A] hover:bg-[#252033] hover:text-[#FAF0FF]'
           }`}
         >
           All
@@ -161,7 +161,7 @@ export function AlertPanel({ initialAlerts }: Props) {
             className={`flex items-center gap-1.5 rounded-lg border px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
               severityFilter === s
                 ? `${SEVERITY_BADGE[s]} border-current`
-                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                : 'border-[#2D293D] bg-[#1D1A26] text-[#7B778A] hover:bg-[#252033] hover:text-[#FAF0FF]'
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${SEVERITY_DOT[s]}`} />
@@ -183,7 +183,7 @@ export function AlertPanel({ initialAlerts }: Props) {
 
       {/* Alert feed */}
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-gray-100 bg-white px-6 py-12 text-center text-sm text-gray-400 shadow-sm">
+        <div className="rounded-xl border px-6 py-12 text-center text-sm shadow-sm" style={{ background: '#1D1A26', borderColor: '#2D293D', color: '#5E5A70' }}>
           No alerts match the current filter.
         </div>
       ) : (
@@ -204,7 +204,7 @@ export function AlertPanel({ initialAlerts }: Props) {
                 </span>
 
                 {/* Message */}
-                <p className="flex-1 text-sm leading-snug text-gray-800">
+                <p className="flex-1 text-sm leading-snug text-[#C0B8D0]">
                   {alert.message}
                 </p>
 
@@ -214,12 +214,12 @@ export function AlertPanel({ initialAlerts }: Props) {
                     {fmtDate(alert.created_at)}
                   </time>
                   {alert.resolved ? (
-                    <span className="text-xs font-medium text-green-600">✓ Resolved</span>
+                    <span className="text-xs font-medium text-[#4ADE80]">✓ Resolved</span>
                   ) : (
                     <button
                       onClick={() => handleResolve(alert.id)}
                       disabled={alert.id <= 0 || resolving.has(alert.id)}
-                      className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-md border px-2.5 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#2D293D]" style={{ background: '#252033', borderColor: '#2D293D', color: '#9E9AAA' }}
                     >
                       {resolving.has(alert.id) ? 'Resolving…' : 'Resolve'}
                     </button>
