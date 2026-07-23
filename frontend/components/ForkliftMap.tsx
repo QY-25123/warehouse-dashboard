@@ -272,7 +272,7 @@ function DonutChart({ counts, total }: { counts: { status: Forklift['status']; c
   });
   return (
     <svg width={80} height={80} viewBox="0 0 80 80">
-      <circle cx={40} cy={40} r={R} fill="none" stroke="#F3F4F6" strokeWidth={10} />
+      <circle cx={40} cy={40} r={R} fill="none" stroke="#2D293D" strokeWidth={10} />
       {slices.map((s) => (
         <circle key={s.status} cx={40} cy={40} r={R} fill="none"
           stroke={STATUS_COLOR[s.status]} strokeWidth={10}
@@ -280,8 +280,8 @@ function DonutChart({ counts, total }: { counts: { status: Forklift['status']; c
           strokeDashoffset={C/4 - s.offset}
           style={{ transition: 'stroke-dasharray 0.4s ease' }} />
       ))}
-      <text x={40} y={37} textAnchor="middle" fontSize={11} fill="#111827" fontWeight="700">{total}</text>
-      <text x={40} y={49} textAnchor="middle" fontSize={7} fill="#6B7280">units</text>
+      <text x={40} y={37} textAnchor="middle" fontSize={11} fill="#FAF0FF" fontWeight="700">{total}</text>
+      <text x={40} y={49} textAnchor="middle" fontSize={7} fill="#7B778A">units</text>
     </svg>
   );
 }
@@ -298,10 +298,10 @@ function ActiveTasksPanel({
   onHover: (fid: number | null) => void;
 }) {
   const panelStyle: CSSProperties = {
-    background: '#FFFFFF',
-    border: '1px solid #E5E7EB',
+    background: '#1D1A26',
+    border: '1px solid #2D293D',
     borderRadius: 12,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
     padding: 14,
     display: 'flex',
     flexDirection: 'column',
@@ -348,9 +348,9 @@ function ActiveTasksPanel({
                 onMouseLeave={() => onHover(null)}
                 style={{
                   background: isDelayed
-                    ? '#FEF2F2'
-                    : isHighlighted ? '#F3F4F6' : '#F9FAFB',
-                  border: `1px solid ${isDelayed ? '#FECACA' : isHighlighted ? typeStyle.color + '60' : '#E5E7EB'}`,
+                    ? '#F8717112'
+                    : isHighlighted ? '#252033' : '#1F1C2B',
+                  border: `1px solid ${isDelayed ? '#F8717140' : isHighlighted ? typeStyle.color + '60' : '#2D293D'}`,
                   borderLeft: `3px solid ${isDelayed ? '#EF4444' : typeStyle.color}`,
                   borderRadius: 8,
                   padding: '8px 10px',
@@ -386,7 +386,7 @@ function ActiveTasksPanel({
                 </div>
 
                 {/* Route */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', marginBottom: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#FAF0FF', marginBottom: 4 }}>
                   {task.origin_zone ?? '?'} → {task.destination_zone ?? '?'}
                 </div>
 
@@ -395,8 +395,8 @@ function ActiveTasksPanel({
                   const forkBadge = STATUS_BADGE_STYLE[fork.status] ?? STATUS_BADGE_FALLBACK;
                   return (
                     <div className="flex items-center gap-1.5 mb-3">
-                      <span style={{ fontSize: 10, color: '#6B7280' }}>🚜</span>
-                      <span style={{ fontSize: 11, color: '#6B7280' }}>{fork.name}</span>
+                      <span style={{ fontSize: 10, color: '#9E9AAA' }}>🚜</span>
+                      <span style={{ fontSize: 11, color: '#9E9AAA' }}>{fork.name}</span>
                       <span style={{
                         marginLeft: 'auto',
                         fontSize: 9, fontWeight: 600,
@@ -422,7 +422,7 @@ function ActiveTasksPanel({
                 </div>
 
                 {/* Time */}
-                <div style={{ fontSize: 10, color: '#9CA3AF' }}>
+                <div style={{ fontSize: 10, color: '#7B778A' }}>
                   {timeAgo(task.updated_at)}
                 </div>
               </div>
@@ -558,10 +558,10 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
   const total = items.length;
 
   const panelStyle: CSSProperties = {
-    background: '#FFFFFF',
-    border: '1px solid #E5E7EB',
+    background: '#1D1A26',
+    border: '1px solid #2D293D',
     borderRadius: 12,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
   };
 
   return (
@@ -648,10 +648,10 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <DonutChart counts={counts} total={total} />
                 <div className="flex-1 text-right">
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#111827', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#FAF0FF', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                     {total}
                   </div>
-                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>forklifts</div>
+                  <div style={{ fontSize: 11, color: '#9E9AAA', marginTop: 4 }}>forklifts</div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -663,13 +663,13 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
                       <div className="flex items-center justify-between mb-1">
                         <span className="flex items-center gap-2">
                           <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: col }} />
-                          <span style={{ fontSize: 12, color: '#6B7280' }}>{STATUS_LABEL[status]}</span>
+                          <span style={{ fontSize: 12, color: '#9E9AAA' }}>{STATUS_LABEL[status]}</span>
                         </span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#FAF0FF', fontVariantNumeric: 'tabular-nums' }}>
                           {count}
                         </span>
                       </div>
-                      <div style={{ height: 3, borderRadius: 2, background: '#F3F4F6', overflow: 'hidden' }}>
+                      <div style={{ height: 3, borderRadius: 2, background: '#2D293D', overflow: 'hidden' }}>
                         <div style={{
                           height: '100%', width: `${pct}%`, backgroundColor: col,
                           borderRadius: 2, transition: 'width 0.4s ease', opacity: count === 0 ? 0.2 : 1,
@@ -703,17 +703,17 @@ export function ForkliftMap({ initialForklifts, onFleetChange }: Props) {
                         textAlign: 'left', transition: 'background 0.15s', width: '100%',
                         border: isErr ? '1px solid #EF444440' : '1px solid transparent',
                         borderTop: isErr ? '2px solid #EF4444' : undefined,
-                        background: isHov ? '#F3F4F6' : i % 2 === 0 ? '#F9FAFB' : 'transparent',
+                        background: isHov ? '#252033' : i % 2 === 0 ? '#1F1C2B' : 'transparent',
                       }}
                     >
                       <span className="h-2 w-2 rounded-full flex-shrink-0"
                         style={{ backgroundColor: STATUS_COLOR[f.status] ?? '#374151' }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#111827', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#FAF0FF', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {f.name}
                       </span>
                       <span style={{
-                        fontSize: 10, fontWeight: 500, color: '#6B7280',
-                        background: '#F9FAFB', border: '1px solid #E5E7EB',
+                        fontSize: 10, fontWeight: 500, color: '#9E9AAA',
+                        background: '#252033', border: '1px solid #2D293D',
                         borderRadius: 4, padding: '1px 5px', flexShrink: 0,
                       }}>
                         {zone}
