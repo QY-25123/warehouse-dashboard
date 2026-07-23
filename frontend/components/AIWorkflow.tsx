@@ -10,23 +10,23 @@ import type { AIPlan, AIForkliftCapacity, AITripAssignment } from '@/lib/types';
 // ── Styling constants ─────────────────────────────────────────────────────────
 
 const PANEL: CSSProperties = {
-  background: '#FFFFFF',
-  border: '1px solid #E5E7EB',
+  background: '#1D1A26',
+  border: '1px solid #2D293D',
   borderRadius: 12,
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
   padding: '20px 24px',
 };
 
 const LABEL: CSSProperties = {
   fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
-  color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12,
+  color: '#7B778A', textTransform: 'uppercase', marginBottom: 12,
 };
 
 const TASK_TYPE_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  outbound:      { color: '#2563EB', bg: '#EFF6FF', label: 'OUTBOUND'      },
-  inbound:       { color: '#059669', bg: '#ECFDF5', label: 'INBOUND'       },
-  relocation:    { color: '#7C3AED', bg: '#F5F3FF', label: 'RELOCATION'    },
-  replenishment: { color: '#D97706', bg: '#FFFBEB', label: 'REPLENISHMENT' },
+  outbound:      { color: '#60A5FA', bg: '#60A5FA15', label: 'OUTBOUND'      },
+  inbound:       { color: '#4ADE80', bg: '#4ADE8015', label: 'INBOUND'       },
+  relocation:    { color: '#A78BFA', bg: '#A78BFA15', label: 'RELOCATION'    },
+  replenishment: { color: '#FCD34D', bg: '#FCD34D15', label: 'REPLENISHMENT' },
 };
 
 const EXAMPLES = [
@@ -73,8 +73,8 @@ function PlanCard({ plan, explanation, onExecute, executing }: {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <TypeBadge type={plan.task_type} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{plan.item_name}</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6B7280' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#FAF0FF' }}>{plan.item_name}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9E9AAA' }}>
           {plan.origin_zone} → {plan.destination_zone}
         </span>
       </div>
@@ -82,12 +82,12 @@ function PlanCard({ plan, explanation, onExecute, executing }: {
       {/* Claude's explanation */}
       {explanation && (
         <div style={{
-          background: '#F0F9FF', border: '1px solid #BAE6FD',
+          background: '#22D3EE0C', border: '1px solid #22D3EE25',
           borderRadius: 8, padding: '10px 14px', marginBottom: 16,
           display: 'flex', gap: 10, alignItems: 'flex-start',
         }}>
           <span style={{ fontSize: 14, flexShrink: 0 }}>🤖</span>
-          <p style={{ fontSize: 12, color: '#0C4A6E', lineHeight: 1.6, margin: 0 }}>
+          <p style={{ fontSize: 12, color: '#67E8F9', lineHeight: 1.6, margin: 0 }}>
             {explanation}
           </p>
         </div>
@@ -96,35 +96,35 @@ function PlanCard({ plan, explanation, onExecute, executing }: {
       {/* Quantity summary */}
       <div style={{
         display: 'flex', gap: 16, marginBottom: 16,
-        padding: '12px 16px', background: '#F9FAFB', borderRadius: 8,
+        padding: '12px 16px', background: '#252033', borderRadius: 8,
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{plan.quantity_planned}</div>
-          <div style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>units planned</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#FAF0FF' }}>{plan.quantity_planned}</div>
+          <div style={{ fontSize: 10, color: '#7B778A', textTransform: 'uppercase', letterSpacing: '0.08em' }}>units planned</div>
         </div>
-        <div style={{ width: 1, background: '#E5E7EB' }} />
+        <div style={{ width: 1, background: '#2D293D' }} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{plan.total_trips}</div>
-          <div style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>total trips</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#FAF0FF' }}>{plan.total_trips}</div>
+          <div style={{ fontSize: 10, color: '#7B778A', textTransform: 'uppercase', letterSpacing: '0.08em' }}>total trips</div>
         </div>
-        <div style={{ width: 1, background: '#E5E7EB' }} />
+        <div style={{ width: 1, background: '#2D293D' }} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{plan.total_forklifts_used}</div>
-          <div style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>forklifts</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#FAF0FF' }}>{plan.total_forklifts_used}</div>
+          <div style={{ fontSize: 10, color: '#7B778A', textTransform: 'uppercase', letterSpacing: '0.08em' }}>forklifts</div>
         </div>
-        <div style={{ width: 1, background: '#E5E7EB' }} />
+        <div style={{ width: 1, background: '#2D293D' }} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#3B82F6' }}>{makespanMin}m</div>
-          <div style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>est. completion</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#22D3EE' }}>{makespanMin}m</div>
+          <div style={{ fontSize: 10, color: '#7B778A', textTransform: 'uppercase', letterSpacing: '0.08em' }}>est. completion</div>
         </div>
       </div>
 
       {/* Insufficient stock warning */}
       {plan.insufficient_stock && (
         <div style={{
-          background: '#FFFBEB', border: '1px solid #FDE68A',
+          background: '#FDE04712', border: '1px solid #FDE04730',
           borderRadius: 8, padding: '8px 12px', marginBottom: 16,
-          fontSize: 12, color: '#92400E',
+          fontSize: 12, color: '#FDE047',
         }}>
           ⚠ Only {plan.quantity_available} units available (requested {plan.quantity_requested}).
           Plan covers available stock only.
@@ -136,11 +136,11 @@ function PlanCard({ plan, explanation, onExecute, executing }: {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+            <tr style={{ borderBottom: '1px solid #2D293D' }}>
               {['Forklift', 'Capacity', 'Trips', 'Units', 'Dist. to pickup', 'Est. time'].map(h => (
                 <th key={h} style={{
                   textAlign: 'left', padding: '6px 10px',
-                  fontSize: 10, fontWeight: 600, color: '#6B7280',
+                  fontSize: 10, fontWeight: 600, color: '#7B778A',
                   textTransform: 'uppercase', letterSpacing: '0.08em',
                 }}>{h}</th>
               ))}
@@ -149,30 +149,30 @@ function PlanCard({ plan, explanation, onExecute, executing }: {
           <tbody>
             {plan.assignments.map((a: AITripAssignment, i: number) => (
               <tr key={a.forklift_id} style={{
-                background: i % 2 === 0 ? '#FFFFFF' : '#F9FAFB',
-                borderBottom: '1px solid #F3F4F6',
+                background: i % 2 === 0 ? '#1D1A26' : '#252033',
+                borderBottom: '1px solid #252033',
               }}>
-                <td style={{ padding: '8px 10px', fontWeight: 600, color: '#111827' }}>
+                <td style={{ padding: '8px 10px', fontWeight: 600, color: '#FAF0FF' }}>
                   {a.forklift_name}
                 </td>
-                <td style={{ padding: '8px 10px', color: '#374151' }}>
+                <td style={{ padding: '8px 10px', color: '#D8D0E8' }}>
                   {a.capacity} units
                 </td>
-                <td style={{ padding: '8px 10px', color: '#374151' }}>
+                <td style={{ padding: '8px 10px', color: '#D8D0E8' }}>
                   <span style={{
-                    background: '#EFF6FF', color: '#1D4ED8',
+                    background: '#22D3EE15', color: '#22D3EE',
                     borderRadius: 4, padding: '1px 6px', fontWeight: 600,
                   }}>
                     ×{a.trips}
                   </span>
                 </td>
-                <td style={{ padding: '8px 10px', color: '#374151' }}>
+                <td style={{ padding: '8px 10px', color: '#D8D0E8' }}>
                   {a.units_assigned}
                 </td>
-                <td style={{ padding: '8px 10px', color: '#374151' }}>
+                <td style={{ padding: '8px 10px', color: '#D8D0E8' }}>
                   {a.dist_to_origin_svgu} SVG-u
                 </td>
-                <td style={{ padding: '8px 10px', color: '#374151' }}>
+                <td style={{ padding: '8px 10px', color: '#D8D0E8' }}>
                   {fmtSeconds(a.estimated_seconds)}
                 </td>
               </tr>
@@ -187,8 +187,8 @@ function PlanCard({ plan, explanation, onExecute, executing }: {
           onClick={onExecute}
           disabled={executing}
           style={{
-            background: executing ? '#93C5FD' : '#2563EB',
-            color: '#FFFFFF', border: 'none', borderRadius: 8,
+            background: executing ? '#FB923C60' : '#FB923C',
+            color: '#13111A', border: 'none', borderRadius: 8,
             padding: '9px 20px', fontSize: 13, fontWeight: 600,
             cursor: executing ? 'not-allowed' : 'pointer',
             transition: 'background 0.15s',
@@ -228,21 +228,22 @@ function CapacitySettings({ capacities, onUpdate }: {
   return (
     <div style={PANEL}>
       <p style={LABEL}>FORKLIFT CAPACITY SETTINGS</p>
-      <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
+      <p style={{ fontSize: 12, color: '#9E9AAA', marginBottom: 16 }}>
         Set the maximum units each forklift can carry per trip. Changes apply to future AI plans immediately.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {capacities.map(f => (
           <div key={f.id} style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            padding: '8px 12px', background: '#F9FAFB', borderRadius: 8,
+            padding: '8px 12px', background: '#252033', borderRadius: 8,
           }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', minWidth: 70 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#FAF0FF', minWidth: 70 }}>
               {f.name}
             </span>
             <span style={{
-              fontSize: 10, color: f.status === 'idle' ? '#059669' : '#6B7280',
-              background: f.status === 'idle' ? '#ECFDF5' : '#F3F4F6',
+              fontSize: 10,
+              color: f.status === 'idle' ? '#4ADE80' : '#9E9AAA',
+              background: f.status === 'idle' ? '#4ADE8015' : '#2D293D',
               borderRadius: 999, padding: '1px 6px', textTransform: 'uppercase',
               letterSpacing: '0.06em',
             }}>
@@ -256,20 +257,21 @@ function CapacitySettings({ capacities, onUpdate }: {
               onChange={e => setDraft(d => ({ ...d, [f.id]: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && save(f.id)}
               style={{
-                width: 80, padding: '4px 8px', border: '1px solid #D1D5DB',
-                borderRadius: 6, fontSize: 13, textAlign: 'right',
-                outline: 'none',
+                width: 80, padding: '4px 8px',
+                border: '1px solid #2D293D', background: '#13111A',
+                color: '#FAF0FF', borderRadius: 6, fontSize: 13,
+                textAlign: 'right', outline: 'none',
               }}
             />
-            <span style={{ fontSize: 12, color: '#9CA3AF' }}>units / trip</span>
+            <span style={{ fontSize: 12, color: '#7B778A' }}>units / trip</span>
             <button
               onClick={() => save(f.id)}
               disabled={saving[f.id]}
               style={{
                 marginLeft: 'auto',
-                background: saved[f.id] ? '#059669' : '#F3F4F6',
-                color: saved[f.id] ? '#FFFFFF' : '#374151',
-                border: '1px solid #E5E7EB', borderRadius: 6,
+                background: saved[f.id] ? '#4ADE80' : '#2D293D',
+                color: saved[f.id] ? '#13111A' : '#9E9AAA',
+                border: '1px solid #2D293D', borderRadius: 6,
                 padding: '4px 12px', fontSize: 12, cursor: 'pointer',
                 fontWeight: 500, transition: 'background 0.15s',
               }}
@@ -348,15 +350,15 @@ export function AIWorkflow({ initialCapacities }: Props) {
   }, []);
 
   return (
-    <div style={{ background: '#F9FAFB', minHeight: '100vh', borderTop: '3px solid #7C3AED' }}>
+    <div style={{ background: 'transparent', minHeight: '100vh', borderTop: '3px solid #8B5CF6' }}>
       <div className="mx-auto px-4 py-6 sm:px-6 sm:py-7" style={{ maxWidth: 900 }}>
 
         {/* Page header */}
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#111827', letterSpacing: '0.06em' }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#FAF0FF', letterSpacing: '0.06em' }}>
             AI TASK PLANNER
           </h1>
-          <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+          <p style={{ fontSize: 12, color: '#9E9AAA', marginTop: 4 }}>
             Describe what you need in plain language — Claude will interpret your request,
             calculate trips based on forklift capacities, and generate an optimised execution plan.
           </p>
@@ -373,8 +375,8 @@ export function AIWorkflow({ initialCapacities }: Props) {
                 key={ex}
                 onClick={() => setMessage(ex)}
                 style={{
-                  fontSize: 11, color: '#6B7280', background: '#F3F4F6',
-                  border: '1px solid #E5E7EB', borderRadius: 999,
+                  fontSize: 11, color: '#9E9AAA', background: '#252033',
+                  border: '1px solid #2D293D', borderRadius: 999,
                   padding: '3px 10px', cursor: 'pointer',
                   transition: 'background 0.1s',
                 }}
@@ -394,10 +396,10 @@ export function AIWorkflow({ initialCapacities }: Props) {
             rows={3}
             style={{
               width: '100%', boxSizing: 'border-box',
-              padding: '10px 14px', border: '1px solid #D1D5DB', borderRadius: 8,
-              fontSize: 14, color: '#111827', resize: 'vertical',
+              padding: '10px 14px', border: '1px solid #2D293D', borderRadius: 8,
+              fontSize: 14, color: '#FAF0FF', resize: 'vertical',
               outline: 'none', fontFamily: 'inherit',
-              background: '#FAFAFA',
+              background: '#13111A',
             }}
           />
 
@@ -406,8 +408,8 @@ export function AIWorkflow({ initialCapacities }: Props) {
               onClick={generatePlan}
               disabled={planning || !message.trim()}
               style={{
-                background: planning || !message.trim() ? '#A5B4FC' : '#7C3AED',
-                color: '#FFFFFF', border: 'none', borderRadius: 8,
+                background: planning || !message.trim() ? '#8B5CF650' : '#8B5CF6',
+                color: '#FAF0FF', border: 'none', borderRadius: 8,
                 padding: '9px 20px', fontSize: 13, fontWeight: 600,
                 cursor: planning || !message.trim() ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s',
@@ -425,16 +427,16 @@ export function AIWorkflow({ initialCapacities }: Props) {
                 </>
               ) : '✦ Generate Plan'}
             </button>
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>⌘ Enter</span>
+            <span style={{ fontSize: 11, color: '#5E5A70' }}>⌘ Enter</span>
           </div>
         </div>
 
         {/* Error state */}
         {error && (
           <div style={{
-            background: '#FEF2F2', border: '1px solid #FECACA',
+            background: '#F8717112', border: '1px solid #F8717130',
             borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-            fontSize: 13, color: '#991B1B',
+            fontSize: 13, color: '#F87171',
           }}>
             {error}
           </div>
@@ -443,16 +445,16 @@ export function AIWorkflow({ initialCapacities }: Props) {
         {/* Success message */}
         {successMsg && (
           <div style={{
-            background: '#F0FDF4', border: '1px solid #BBF7D0',
+            background: '#4ADE8012', border: '1px solid #4ADE8030',
             borderRadius: 8, padding: '12px 16px', marginBottom: 16,
-            fontSize: 13, color: '#14532D',
+            fontSize: 13, color: '#4ADE80',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
             <span>{successMsg}</span>
             <Link
               href="/tasks"
               style={{
-                color: '#059669', fontWeight: 600, fontSize: 12,
+                color: '#4ADE80', fontWeight: 600, fontSize: 12,
                 textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 12,
               }}
             >

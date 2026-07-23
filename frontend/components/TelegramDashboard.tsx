@@ -13,19 +13,19 @@ import type {
 // ── Style constants ───────────────────────────────────────────────────────────
 
 const PANEL: CSSProperties = {
-  background: '#FFFFFF',
-  border: '1px solid #E5E7EB',
+  background: '#1D1A26',
+  border: '1px solid #2D293D',
   borderRadius: 12,
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
 };
 
 const STATE_STYLE: Record<TelegramSessionState, { color: string; bg: string; label: string }> = {
-  idle:                   { color: '#9CA3AF', bg: '#F3F4F6',   label: 'Idle'          },
-  chatting:               { color: '#2563EB', bg: '#EFF6FF',   label: 'Chatting'      },
-  awaiting_confirmation:  { color: '#7C3AED', bg: '#F5F3FF',   label: 'Confirming'    },
-  generating:             { color: '#D97706', bg: '#FFFBEB',   label: 'Planning…'     },
-  awaiting_plan_approval: { color: '#059669', bg: '#ECFDF5',   label: 'Plan Ready'    },
-  executing:              { color: '#DC2626', bg: '#FEF2F2',   label: 'Executing'     },
+  idle:                   { color: '#5E5A70', bg: '#2D293D',    label: 'Idle'          },
+  chatting:               { color: '#60A5FA', bg: '#60A5FA15',  label: 'Chatting'      },
+  awaiting_confirmation:  { color: '#A78BFA', bg: '#A78BFA15',  label: 'Confirming'    },
+  generating:             { color: '#FCD34D', bg: '#FCD34D15',  label: 'Planning…'     },
+  awaiting_plan_approval: { color: '#4ADE80', bg: '#4ADE8015',  label: 'Plan Ready'    },
+  executing:              { color: '#F87171', bg: '#F8717115',   label: 'Executing'     },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -77,13 +77,13 @@ function PlanCard({ plan, isAdmin, onExecute, onReject }: {
   return (
     <div style={{
       margin: '12px 16px',
-      background: '#F0FDF4', border: '1px solid #BBF7D0',
+      background: '#4ADE8010', border: '1px solid #4ADE8035',
       borderRadius: 10, padding: '14px 16px',
     }}>
-      <p style={{ fontSize: 10, fontWeight: 700, color: '#059669', letterSpacing: '0.1em', marginBottom: 10 }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: '#4ADE80', letterSpacing: '0.1em', marginBottom: 10 }}>
         PENDING PLAN — AWAITING APPROVAL
       </p>
-      <div style={{ fontSize: 13, color: '#111827', marginBottom: 10 }}>
+      <div style={{ fontSize: 13, color: '#FAF0FF', marginBottom: 10 }}>
         <strong>{plan.quantity_planned} units</strong> of {plan.item_name}
         {' · '}{plan.origin_zone} → {plan.destination_zone}
         {' · '}{plan.total_trips} trip(s) across {plan.total_forklifts_used} forklift(s)
@@ -91,7 +91,7 @@ function PlanCard({ plan, isAdmin, onExecute, onReject }: {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
         {plan.assignments.map(a => (
-          <div key={a.forklift_id} style={{ fontSize: 12, color: '#374151' }}>
+          <div key={a.forklift_id} style={{ fontSize: 12, color: '#C0B8D0' }}>
             • {a.forklift_name}: {a.trips} trip(s) · {a.units_assigned} units · ~{fmtSeconds(a.estimated_seconds)}
           </div>
         ))}
@@ -99,14 +99,14 @@ function PlanCard({ plan, isAdmin, onExecute, onReject }: {
       {isAdmin ? (
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onExecute} style={{
-            background: '#059669', color: '#FFFFFF', border: 'none',
+            background: '#4ADE80', color: '#13111A', border: 'none',
             borderRadius: 7, padding: '7px 16px', fontSize: 12, fontWeight: 600,
             cursor: 'pointer',
           }}>
             Approve & Execute
           </button>
           <button onClick={onReject} style={{
-            background: '#F3F4F6', color: '#374151', border: '1px solid #E5E7EB',
+            background: '#252033', color: '#9E9AAA', border: '1px solid #2D293D',
             borderRadius: 7, padding: '7px 16px', fontSize: 12, fontWeight: 600,
             cursor: 'pointer',
           }}>
@@ -114,7 +114,7 @@ function PlanCard({ plan, isAdmin, onExecute, onReject }: {
           </button>
         </div>
       ) : (
-        <p style={{ fontSize: 12, color: '#6B7280' }}>
+        <p style={{ fontSize: 12, color: '#9E9AAA' }}>
           Waiting for manager to approve via Telegram.
         </p>
       )}
@@ -141,7 +141,7 @@ function ChatPanel({ detail, isAdmin, onExecute, onReset }: {
       {/* Chat header */}
       <div style={{
         padding: '14px 20px',
-        borderBottom: '1px solid #E5E7EB',
+        borderBottom: '1px solid #2D293D',
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <div style={{
@@ -152,7 +152,7 @@ function ChatPanel({ detail, isAdmin, onExecute, onReset }: {
           ✈️
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#FAF0FF' }}>
             {detail.phone_number}
           </div>
           <StateBadge state={detail.state} />
@@ -161,8 +161,8 @@ function ChatPanel({ detail, isAdmin, onExecute, onReset }: {
           <button
             onClick={onReset}
             style={{
-              fontSize: 11, color: '#9CA3AF', background: 'none',
-              border: '1px solid #E5E7EB', borderRadius: 6,
+              fontSize: 11, color: '#7B778A', background: 'none',
+              border: '1px solid #2D293D', borderRadius: 6,
               padding: '4px 10px', cursor: 'pointer',
             }}
           >
@@ -174,7 +174,7 @@ function ChatPanel({ detail, isAdmin, onExecute, onReset }: {
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
         {detail.messages.length === 0 && (
-          <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, paddingTop: 40 }}>
+          <div style={{ textAlign: 'center', color: '#5E5A70', fontSize: 13, paddingTop: 40 }}>
             No messages yet
           </div>
         )}
@@ -197,13 +197,13 @@ function ChatPanel({ detail, isAdmin, onExecute, onReset }: {
       {detail.state === 'generating' && (
         <div style={{
           margin: '0 16px 12px', padding: '10px 14px',
-          background: '#FFFBEB', borderRadius: 8,
-          fontSize: 12, color: '#92400E',
+          background: '#FCD34D10', borderRadius: 8,
+          fontSize: 12, color: '#FCD34D',
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <span style={{
             display: 'inline-block', width: 12, height: 12,
-            border: '2px solid #D9770640', borderTopColor: '#D97706',
+            border: '2px solid #FCD34D30', borderTopColor: '#FCD34D',
             borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0,
           }} />
           Claude is generating an optimised plan…
@@ -223,18 +223,18 @@ function MessageBubble({ msg }: { msg: TelegramMessage }) {
     }}>
       <div style={{
         maxWidth: '75%',
-        background: isInbound ? '#F3F4F6' : '#D6EAF8',
+        background: isInbound ? '#252033' : '#229ED920',
         borderRadius: isInbound ? '12px 12px 12px 3px' : '12px 12px 3px 12px',
         padding: '8px 12px',
       }}>
         <p style={{
-          fontSize: 13, color: '#111827', margin: 0,
+          fontSize: 13, color: '#FAF0FF', margin: 0,
           whiteSpace: 'pre-wrap', lineHeight: 1.5,
         }}>
           {msg.content}
         </p>
         <p style={{
-          fontSize: 10, color: '#9CA3AF', margin: '4px 0 0',
+          fontSize: 10, color: '#5E5A70', margin: '4px 0 0',
           textAlign: 'right',
         }}>
           {fmtTime(msg.timestamp)}
@@ -251,11 +251,11 @@ function EmptyState() {
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      color: '#9CA3AF', gap: 12,
+      color: '#5E5A70', gap: 12,
     }}>
       <div style={{ fontSize: 48 }}>✈️</div>
-      <p style={{ fontSize: 14, color: '#6B7280' }}>Select a conversation</p>
-      <p style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: '#7B778A' }}>Select a conversation</p>
+      <p style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.6, color: '#5E5A70' }}>
         Messages from the Telegram bot will appear here in real time.
         Managers can create tasks by messaging the bot.
       </p>
@@ -373,15 +373,15 @@ export function TelegramDashboard({ initialConversations }: Props) {
   }, [selected, loadDetail]);
 
   return (
-    <div style={{ background: '#F9FAFB', minHeight: '100vh', borderTop: '3px solid #229ED9' }}>
+    <div style={{ background: 'transparent', minHeight: '100vh', borderTop: '3px solid #229ED9' }}>
       <div className="mx-auto px-4 py-6 sm:px-6 sm:py-7" style={{ maxWidth: 1200 }}>
 
         {/* Header */}
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#111827', letterSpacing: '0.06em' }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#FAF0FF', letterSpacing: '0.06em' }}>
             TELEGRAM WORKFLOW
           </h1>
-          <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+          <p style={{ fontSize: 12, color: '#9E9AAA', marginTop: 4 }}>
             Live conversations between warehouse managers and the AI agent.
           </p>
         </div>
@@ -392,14 +392,14 @@ export function TelegramDashboard({ initialConversations }: Props) {
           {/* Left: conversation list */}
           <div style={{ ...PANEL, width: 280, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{
-              padding: '12px 16px', borderBottom: '1px solid #E5E7EB',
-              fontSize: 10, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.12em',
+              padding: '12px 16px', borderBottom: '1px solid #2D293D',
+              fontSize: 10, fontWeight: 700, color: '#7B778A', letterSpacing: '0.12em',
             }}>
               CONVERSATIONS ({conversations.length})
             </div>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {conversations.length === 0 ? (
-                <div style={{ padding: 20, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
+                <div style={{ padding: 20, textAlign: 'center', color: '#5E5A70', fontSize: 13 }}>
                   No conversations yet
                 </div>
               ) : conversations.map(c => (
@@ -416,7 +416,7 @@ export function TelegramDashboard({ initialConversations }: Props) {
           {/* Right: chat panel */}
           <div style={{ ...PANEL, flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {loadingDetail ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5E5A70' }}>
                 Loading…
               </div>
             ) : detail ? (
@@ -449,8 +449,8 @@ function ConversationRow({ conv, isSelected, onClick }: {
       onClick={onClick}
       style={{
         width: '100%', textAlign: 'left', padding: '12px 16px',
-        background: isSelected ? '#EFF6FF' : 'transparent',
-        borderBottom: '1px solid #F3F4F6', border: 'none',
+        background: isSelected ? '#229ED918' : 'transparent',
+        borderBottom: '1px solid #252033', border: 'none',
         cursor: 'pointer', transition: 'background 0.1s',
       }}
     >
@@ -459,10 +459,10 @@ function ConversationRow({ conv, isSelected, onClick }: {
           width: 8, height: 8, borderRadius: '50%',
           background: s.color, flexShrink: 0,
         }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#FAF0FF', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {conv.phone_number}
         </span>
-        <span style={{ fontSize: 10, color: '#9CA3AF', flexShrink: 0 }}>
+        <span style={{ fontSize: 10, color: '#5E5A70', flexShrink: 0 }}>
           {fmtDate(conv.updated_at)}
         </span>
       </div>
@@ -470,7 +470,7 @@ function ConversationRow({ conv, isSelected, onClick }: {
         <StateBadge state={conv.state} />
         {conv.last_message && (
           <span style={{
-            fontSize: 11, color: '#6B7280',
+            fontSize: 11, color: '#7B778A',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           }}>
             {conv.last_message}
