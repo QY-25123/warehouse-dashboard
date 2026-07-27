@@ -41,7 +41,10 @@ async def _poll(pool: asyncpg.Pool) -> None:
     try:
         emails = await list_emails(_SENDER, max_results=10)
     except Exception as exc:
-        logger.warning("Gmail list_emails failed: %s", exc)
+        logger.warning("Gmail list_emails failed: %s", exc, exc_info=True)
+        if hasattr(exc, 'exceptions'):
+            for i, sub in enumerate(exc.exceptions):
+                logger.warning("  sub-exception %d: %s", i, sub, exc_info=(type(sub), sub, sub.__traceback__))
         return
 
     for email in emails:
