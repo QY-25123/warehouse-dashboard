@@ -420,15 +420,12 @@ export function GmailOrders({ initialOrders }: Props) {
     setOrders(prev => prev.map(o => o.id === id ? updated : o));
   }, []);
 
-  const handleApprove = useCallback(async (id: number) => {
+  const handleApprove = useCallback(async (id: number): Promise<void> => {
     const token = await getClientToken();
-    // Optimistically mark as generating
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'generating' } : o));
-    const result = await api.gmail.approveOrder(id, token);
-    // Refresh so we get the real plan + task_ids from DB
+    await api.gmail.approveOrder(id, token);
     await refreshOrders();
-    return result;
-  }, []);
+  }, [refreshOrders]);
 
   const handleReject = useCallback(async (id: number) => {
     const token = await getClientToken();
