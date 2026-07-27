@@ -144,7 +144,7 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#FAF0FF', marginBottom: 2, truncate: 'ellipsis' as unknown as undefined }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#FAF0FF', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {order.subject || '(no subject)'}
           </p>
           <p style={{ fontSize: 11, color: '#7B778A' }}>
