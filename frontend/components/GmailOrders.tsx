@@ -383,7 +383,7 @@ export function GmailOrders({ initialOrders }: Props) {
     }
   }, [refreshOrders]);
 
-  useWebSocket(handleWsMessage);
+  useWebSocket({ onMessage: handleWsMessage });
 
   const loadInbox = useCallback(async () => {
     setLoadingInbox(true);
