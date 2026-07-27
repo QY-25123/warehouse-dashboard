@@ -26,7 +26,7 @@ import sys
 import mcp.server.stdio
 import mcp.types as types
 from mcp.server import Server
-from mcp.server.models import InitializationOptions
+from mcp.server.models import InitializationOptions, NotificationOptions
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -213,7 +213,7 @@ async def main() -> None:
                 server_name="gmail-warehouse",
                 server_version="0.1.0",
                 capabilities=server.get_capabilities(
-                    notification_options=None,
+                    notification_options=NotificationOptions(),
                     experimental_capabilities={},
                 ),
             ),
