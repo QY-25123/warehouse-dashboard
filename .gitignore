@@ -3,6 +3,13 @@
 .env.*.local
 .env
 
+# Google OAuth credentials — contain secrets, never commit
+gsheet_credentials.json
+gmail_credentials.json
+client_secret.json
+get_gsheet_token.py
+get_gmail_token.py
+
 # Dependencies
 node_modules/
 

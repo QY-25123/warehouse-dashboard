@@ -142,6 +142,14 @@ export interface ForkliftTaskCount {
   tasks_completed: number;
 }
 
+export interface WsGmailOrderPayload {
+  order_id: number;
+  message_id: string;
+  subject: string | null;
+  item_name: string | null;
+  quantity: number | null;
+}
+
 export type WsMessage =
   | { type: 'batch';              messages: WsMessage[] }
   | { type: 'forklift_update';    payload: WsForkliftPayload }
@@ -151,7 +159,8 @@ export type WsMessage =
   | { type: 'inventory_update';   payload: WsInventoryPayload }
   | { type: 'alert';              payload: WsAlertPayload }
   | { type: 'tick_update';        new_events: Event[] }
-  | { type: 'telegram_message';   payload: WsTelegramPayload };
+  | { type: 'telegram_message';   payload: WsTelegramPayload }
+  | { type: 'gmail_order';        payload: WsGmailOrderPayload };
 
 // ── Telegram workflow types ───────────────────────────────────────────────────
 
@@ -232,4 +241,33 @@ export interface AIForkliftCapacity {
   name: string;
   status: string;
   capacity: number;
+}
+
+// ── Gmail order intake types ──────────────────────────────────────────────────
+
+export type EmailOrderStatus = 'pending_review' | 'generating' | 'executed' | 'rejected';
+
+export interface EmailOrder {
+  id: number;
+  message_id: string;
+  sender: string;
+  subject: string | null;
+  email_body: string | null;
+  received_at: string | null;
+  extracted_item_name: string | null;
+  extracted_quantity: number | null;
+  extracted_destination_zone: string | null;
+  extracted_notes: string | null;
+  status: EmailOrderStatus;
+  plan: AIPlan | null;
+  task_ids: number[] | null;
+  created_at: string;
+}
+
+export interface RawEmail {
+  id: string;
+  subject: string;
+  sender: string;
+  date: string;
+  snippet: string;
 }

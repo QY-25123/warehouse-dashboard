@@ -11,7 +11,7 @@ from app.database import create_pool
 from app.ws_manager import manager as ws_manager
 from app import simulator
 from app.routers import forklifts, tasks, inventory, alerts, events
-from app.routers import ws, admin, analytics, ai_workflow, telegram_bot
+from app.routers import ws, admin, analytics, ai_workflow, telegram_bot, gmail_orders
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,6 +35,11 @@ async def lifespan(app: FastAPI):
         from app import sheets_poller  # noqa: PLC0415
         sheets_task = asyncio.create_task(sheets_poller.run(pool))
 
+    gmail_task = None
+    if os.getenv("GMAIL_CREDENTIALS_JSON", "").strip() or os.getenv("GMAIL_CREDENTIALS_FILE", "").strip():
+        from app import gmail_poller  # noqa: PLC0415
+        gmail_task = asyncio.create_task(gmail_poller.run(pool))
+
     yield
 
     sim_task.cancel()
@@ -54,6 +59,13 @@ async def lifespan(app: FastAPI):
         sheets_task.cancel()
         try:
             await sheets_task
+        except asyncio.CancelledError:
+            pass
+
+    if gmail_task:
+        gmail_task.cancel()
+        try:
+            await gmail_task
         except asyncio.CancelledError:
             pass
 
@@ -84,6 +96,7 @@ app.include_router(admin.router)
 app.include_router(analytics.router)
 app.include_router(ai_workflow.router)
 app.include_router(telegram_bot.router)
+app.include_router(gmail_orders.router)
 
 
 @app.get("/health")

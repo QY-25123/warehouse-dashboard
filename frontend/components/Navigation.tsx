@@ -14,6 +14,7 @@ const LINKS = [
   { href: '/events',     label: 'Events',    exact: false },
   { href: '/ai',         label: 'AI Tasks',  exact: false },
   { href: '/telegram',   label: 'Telegram',  exact: false },
+  { href: '/gmail',      label: 'Gmail',     exact: false },
 ] as const;
 
 export function Navigation() {

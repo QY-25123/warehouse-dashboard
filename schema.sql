@@ -132,6 +132,35 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages (
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_session ON whatsapp_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_updated ON whatsapp_sessions(updated_at DESC);
 
+-- ── Gmail order intake ────────────────────────────────────────────────────────
+
+DO $$ BEGIN
+  CREATE TYPE email_order_status AS ENUM (
+    'pending_review', 'generating', 'executed', 'rejected'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS email_orders (
+    id                           SERIAL PRIMARY KEY,
+    message_id                   TEXT               NOT NULL UNIQUE,
+    sender                       TEXT               NOT NULL,
+    subject                      TEXT,
+    email_body                   TEXT,
+    received_at                  TIMESTAMPTZ,
+    extracted_item_name          TEXT,
+    extracted_quantity           INTEGER,
+    extracted_destination_zone   TEXT               DEFAULT 'SHIP',
+    extracted_notes              TEXT,
+    status                       email_order_status NOT NULL DEFAULT 'pending_review',
+    plan                         JSONB,
+    task_ids                     INTEGER[],
+    created_at                   TIMESTAMPTZ        NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_orders_status     ON email_orders(status);
+CREATE INDEX IF NOT EXISTS idx_email_orders_created_at ON email_orders(created_at DESC);
+
 -- ── Auth: user profiles ──────────────────────────────────────────────────────
 
 DO $$ BEGIN

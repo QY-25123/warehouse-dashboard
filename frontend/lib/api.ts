@@ -4,6 +4,7 @@ import type {
   AnalyticsSummary, ThroughputBucket, ForkliftTaskCount,
   AIPlan, AIForkliftCapacity,
   TelegramConversation, TelegramConversationDetail,
+  EmailOrder, RawEmail,
 } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -174,6 +175,65 @@ export const api = {
         `${BASE}/telegram/conversations/${encodeURIComponent(chatId)}`,
         { method: 'DELETE', headers },
       );
+    },
+  },
+  gmail: {
+    listEmails: (token?: string) =>
+      get<RawEmail[]>('/gmail/emails', undefined, token),
+
+    extractOrder: async (messageId: string, token?: string): Promise<EmailOrder> => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/gmail/emails/${encodeURIComponent(messageId)}/extract`, {
+        method: 'POST',
+        headers,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.detail ?? `Extract failed (${res.status})`);
+      }
+      return res.json();
+    },
+
+    listOrders: (token?: string) =>
+      get<EmailOrder[]>('/gmail/orders', undefined, token),
+
+    patchOrder: async (
+      id: number,
+      updates: Partial<Pick<EmailOrder,
+        'extracted_item_name' | 'extracted_quantity' |
+        'extracted_destination_zone' | 'extracted_notes'>>,
+      token?: string,
+    ): Promise<EmailOrder> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/gmail/orders/${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error(`Patch failed (${res.status})`);
+      return res.json();
+    },
+
+    approveOrder: async (id: number, token?: string) => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/gmail/orders/${id}/approve`, {
+        method: 'POST',
+        headers,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.detail ?? `Approve failed (${res.status})`);
+      }
+      return res.json() as Promise<{ status: string; tasks_created: number; task_ids: number[]; plan: AIPlan }>;
+    },
+
+    rejectOrder: async (id: number, token?: string): Promise<void> => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`${BASE}/gmail/orders/${id}`, { method: 'DELETE', headers });
     },
   },
 } as const;
