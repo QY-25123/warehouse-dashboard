@@ -145,7 +145,7 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 600, color: '#FAF0FF', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {order.subject || '(no subject)'}
+            {`Email from ${order.sender?.match(/<(.+)>/)?.[1] ?? order.sender ?? 'unknown'}`}
           </p>
           <p style={{ fontSize: 11, color: '#7B778A' }}>
             {order.sender} · {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
@@ -390,14 +390,17 @@ export function GmailOrders({ initialOrders }: Props) {
     setInboxError('');
     try {
       const token = await getClientToken();
-      const data = await api.gmail.listEmails(token);
+      const [data] = await Promise.all([
+        api.gmail.listEmails(token),
+        refreshOrders(),
+      ]);
       setEmails(data);
     } catch (e: unknown) {
       setInboxError(e instanceof Error ? e.message : 'Failed to load inbox');
     } finally {
       setLoadingInbox(false);
     }
-  }, []);
+  }, [refreshOrders]);
 
   const handleExtract = useCallback(async (messageId: string) => {
     setExtracting(prev => new Set(prev).add(messageId));

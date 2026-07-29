@@ -68,14 +68,15 @@ async def _poll(pool: asyncpg.Pool) -> None:
         email_data = result.get("email") or {}
         is_order   = order.get("is_order", False)
 
-        # Save to DB (non-orders saved as 'rejected' to prevent re-processing)
+        # Save to DB — always pending_review so humans can review even if Claude
+        # found no order (extraction may fail on HTML-only emails or ambiguous content).
         row = await pool.fetchrow(
             """
             INSERT INTO email_orders
               (message_id, sender, subject, email_body, received_at,
                extracted_item_name, extracted_quantity, extracted_destination_zone,
                extracted_notes, status)
-            VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,$9::email_order_status)
+            VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,'pending_review')
             ON CONFLICT (message_id) DO NOTHING
             RETURNING id, status
             """,
@@ -87,13 +88,12 @@ async def _poll(pool: asyncpg.Pool) -> None:
             order.get("quantity")                     if is_order else None,
             (order.get("destination_zone") or "SHIP") if is_order else None,
             order.get("notes")                        if is_order else None,
-            "pending_review" if is_order else "rejected",
         )
 
-        if row and is_order:
+        if row:
             logger.info(
-                "Email order #%s created — %s × %s",
-                row["id"], order.get("item_name"), order.get("quantity"),
+                "Email order #%s created (is_order=%s) — %s × %s",
+                row["id"], is_order, order.get("item_name"), order.get("quantity"),
             )
             await ws_manager.broadcast({
                 "type": "gmail_order",
