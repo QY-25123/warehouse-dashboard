@@ -21,6 +21,7 @@ Required env var:
 import base64
 import json
 import os
+import re
 
 from mcp.server.fastmcp import FastMCP
 
@@ -76,8 +77,18 @@ def _decode_body(payload: dict) -> str:
         raw = payload.get("body", {}).get("data", "")
         if raw:
             return base64.urlsafe_b64decode(raw + "==").decode("utf-8", errors="replace")
+    elif mime == "text/html":
+        raw = payload.get("body", {}).get("data", "")
+        if raw:
+            html = base64.urlsafe_b64decode(raw + "==").decode("utf-8", errors="replace")
+            return re.sub(r"<[^>]+>", " ", html).strip()
     elif mime.startswith("multipart/"):
-        return "\n".join(_decode_body(p) for p in payload.get("parts", []))
+        parts = payload.get("parts", [])
+        # Prefer plain text; fall back to HTML
+        plain = next((p for p in parts if p.get("mimeType") == "text/plain"), None)
+        if plain:
+            return _decode_body(plain)
+        return "\n".join(_decode_body(p) for p in parts)
     return ""
 
 

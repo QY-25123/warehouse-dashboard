@@ -7,6 +7,7 @@
 gsheet_credentials.json
 gmail_credentials.json
 client_secret.json
+client_secret_*.json
 get_gsheet_token.py
 get_gmail_token.py
 
