@@ -1,12 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { exchangeCode, loadOAuthSession, clearOAuthSession } from '@/lib/notion-oauth';
 import { api } from '@/lib/api';
 import { getClientToken } from '@/lib/client-auth';
 
-export default function NotionCallbackPage() {
+function Spinner() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', minHeight: '100vh', gap: 16,
+      background: '#13111A', color: '#FAF0FF',
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        border: '3px solid #2D293D', borderTopColor: '#8B5CF6',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <p style={{ fontSize: 14, color: '#9E9AAA' }}>Connecting to Notion…</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function CallbackHandler() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
@@ -67,23 +85,7 @@ export default function NotionCallbackPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (status === 'loading') {
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', minHeight: '100vh', gap: 16,
-        background: '#13111A', color: '#FAF0FF',
-      }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          border: '3px solid #2D293D', borderTopColor: '#8B5CF6',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <p style={{ fontSize: 14, color: '#9E9AAA' }}>Connecting to Notion…</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
+  if (status === 'loading') return <Spinner />;
 
   return (
     <div style={{
@@ -104,5 +106,13 @@ export default function NotionCallbackPage() {
         Back to AI Planner
       </button>
     </div>
+  );
+}
+
+export default function NotionCallbackPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <CallbackHandler />
+    </Suspense>
   );
 }
