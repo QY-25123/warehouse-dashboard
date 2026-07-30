@@ -38,10 +38,11 @@ function PagePicker({
   const [searched, setSearched] = useState(false);
 
   const search = useCallback(async () => {
+    if (!query.trim()) return;
     setLoad(true);
     try {
       const token = await getClientToken();
-      const results = await api.notion.searchPages(query, token);
+      const results = await api.notion.searchPages(query.trim(), token);
       setPages(results);
       setSearched(true);
     } catch {
@@ -51,9 +52,6 @@ function PagePicker({
       setLoad(false);
     }
   }, [query]);
-
-  // Auto-search on mount with empty query
-  useEffect(() => { search(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ marginTop: 14 }}>
@@ -86,9 +84,14 @@ function PagePicker({
         </button>
       </div>
 
+      {!searched && (
+        <p style={{ fontSize: 12, color: '#5E5A70' }}>
+          Type a page name and press Search.
+        </p>
+      )}
       {searched && pages.length === 0 && (
         <p style={{ fontSize: 12, color: '#5E5A70' }}>
-          No pages found. Make sure the integration has access to your pages in Notion.
+          No pages found for &quot;{query}&quot;. Try a different name.
         </p>
       )}
 
