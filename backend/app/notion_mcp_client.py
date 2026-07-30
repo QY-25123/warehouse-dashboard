@@ -154,7 +154,7 @@ async def search_pages(access_token: str, query: str = "") -> list[dict]:
 
         result = await _tool_call(
             client, access_token, sid, "notion-search",
-            {"query": query} if query else {},
+            {"query": query},
         )
 
     logger.info("notion-search raw result: %s", json.dumps(result)[:2000])
