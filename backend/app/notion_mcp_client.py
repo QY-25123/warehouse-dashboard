@@ -152,36 +152,62 @@ async def search_pages(access_token: str, query: str = "") -> list[dict]:
     async with httpx.AsyncClient(timeout=30.0) as client:
         sid = await _open_session(client, access_token)
 
-        # Discover available tools and find a search one
-        tools = await _list_tools_raw(client, access_token, sid)
-        tool_names = [t["name"] for t in tools]
-        logger.info("Notion MCP tools: %s", tool_names)
-
-        search_tool = next(
-            (n for n in tool_names if "search" in n.lower()),
-            None,
-        )
-        if not search_tool:
-            raise NotionMCPError("No search tool found in Notion MCP")
-
         result = await _tool_call(
-            client, access_token, sid, search_tool,
-            {"query": query, "filter": {"value": "page", "property": "object"}},
+            client, access_token, sid, "notion-search",
+            {"query": query} if query else {},
         )
 
-    data = _extract_tool_content(result)
-    pages = []
-    for obj in data.get("results", []):
-        if obj.get("object") != "page":
+    logger.info("notion-search raw result: %s", json.dumps(result)[:2000])
+
+    pages: list[dict] = []
+
+    # The content field holds an array of content blocks from the MCP tool
+    for item in result.get("content", []):
+        text = item.get("text", "")
+        if not text:
             continue
-        title_parts = (
-            obj.get("properties", {})
-               .get("title", {})
-               .get("title", [])
-        )
-        title = "".join(p.get("plain_text", "") for p in title_parts) or "Untitled"
-        pages.append({"id": obj["id"], "title": title, "url": obj.get("url", "")})
+        # Try JSON parse first
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            # Plain text — extract page URLs / titles if possible
+            logger.info("notion-search returned plain text: %s", text[:500])
+            continue
+
+        # Format A: {"results": [{object:"page", id:..., url:..., ...}]}
+        results = data if isinstance(data, list) else data.get("results", [])
+        for obj in results:
+            if not isinstance(obj, dict):
+                continue
+            obj_type = obj.get("object", "")
+            if obj_type and obj_type != "page":
+                continue
+
+            # Extract title from multiple possible locations
+            title = (
+                obj.get("title")                                  # flat field
+                or _title_from_properties(obj.get("properties", {}))
+                or "Untitled"
+            )
+            if isinstance(title, list):  # rich_text array
+                title = "".join(p.get("plain_text", "") for p in title) or "Untitled"
+
+            page_id = obj.get("id", "")
+            url = obj.get("url", "")
+            if page_id:
+                pages.append({"id": page_id, "title": str(title), "url": url})
+
     return pages
+
+
+def _title_from_properties(props: dict) -> str:
+    """Extract page title from Notion properties dict."""
+    for key in ("title", "Name", "Title"):
+        prop = props.get(key, {})
+        rich = prop.get("title", prop.get("rich_text", []))
+        if rich:
+            return "".join(p.get("plain_text", "") for p in rich)
+    return ""
 
 
 async def create_execution_report(
@@ -280,21 +306,8 @@ async def create_execution_report(
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         sid = await _open_session(client, access_token)
-
-        # Discover the page-creation tool name
-        tools = await _list_tools_raw(client, access_token, sid)
-        tool_names = [t["name"] for t in tools]
-
-        create_tool = next(
-            (n for n in tool_names if "create" in n.lower() and "page" in n.lower()),
-            None,
-        )
-        if not create_tool:
-            # Fallback to known name
-            create_tool = "notion_create_a_page"
-        logger.info("Using Notion create-page tool: %s", create_tool)
-
-        result = await _tool_call(client, access_token, sid, create_tool, create_args)
+        logger.info("Creating Notion page via notion-create-pages")
+        result = await _tool_call(client, access_token, sid, "notion-create-pages", create_args)
 
     page_data = _extract_tool_content(result)
     url = page_data.get("url", "")
