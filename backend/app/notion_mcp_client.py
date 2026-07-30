@@ -65,6 +65,30 @@ def _extract_tool_content(result: dict) -> dict:
     return {}
 
 
+def _extract_created_page_url(result: dict) -> str:
+    """Extract page URL from a notion-create-pages MCP result."""
+    import re
+    for item in result.get("content", []):
+        if item.get("type") != "text":
+            continue
+        text = item.get("text", "")
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            m = re.search(r'https://www\.notion\.so/\S+', text)
+            return m.group(0).rstrip(".,)") if m else ""
+        if isinstance(data, dict):
+            if "url" in data:
+                return data["url"]
+            for key in ("results", "pages"):
+                items = data.get(key) or []
+                if items and isinstance(items, list):
+                    return items[0].get("url", "")
+        elif isinstance(data, list) and data:
+            return data[0].get("url", "")
+    return ""
+
+
 # ── Session helper ────────────────────────────────────────────────────────────
 
 async def _open_session(client: httpx.AsyncClient, access_token: str) -> str | None:
@@ -229,83 +253,64 @@ async def create_execution_report(
     makespan_s = plan.get("makespan_s", 0)
     makespan_str = f"{makespan_s // 60}m {makespan_s % 60}s"
 
-    def bullet(text: str) -> dict:
-        return {
-            "object": "block",
-            "type": "bulleted_list_item",
-            "bulleted_list_item": {
-                "rich_text": [{"type": "text", "text": {"content": text}}]
-            },
-        }
+    # Build Notion-flavored Markdown content
+    lines: list[str] = []
 
-    def h2(text: str) -> dict:
-        return {
-            "object": "block",
-            "type": "heading_2",
-            "heading_2": {"rich_text": [{"type": "text", "text": {"content": text}}]},
-        }
+    if explanation:
+        lines.append(f"> {explanation.replace(chr(10), ' ')}")
+        lines.append("")
 
-    def divider() -> dict:
-        return {"object": "block", "type": "divider", "divider": {}}
+    lines += [
+        "---",
+        "",
+        "## 📦 Summary",
+        "",
+        f"- **Task type**: {task_type}",
+        f"- **Item**: {item_name} (ID {plan.get('item_id')})",
+    ]
 
-    children: list[dict] = [
-        # AI explanation callout
-        {
-            "object": "block",
-            "type": "callout",
-            "callout": {
-                "rich_text": [{"type": "text", "text": {
-                    "content": explanation or "No explanation provided."
-                }}],
-                "icon": {"type": "emoji", "emoji": "🤖"},
-                "color": "blue_background",
-            },
-        },
-        divider(),
-        h2("Summary"),
-        bullet(f"Task type: {task_type}"),
-        bullet(f"Item: {item_name}  (ID {plan.get('item_id')})"),
-        bullet(f"Quantity: {plan.get('quantity_planned')} units"
-               + (f"  ⚠ only {plan.get('quantity_available')} in stock"
-                  if plan.get("insufficient_stock") else "")),
-        bullet(f"Route: {plan.get('origin_zone')} → {plan.get('destination_zone')}"),
-        bullet(f"Total trips: {plan.get('total_trips')}  across {plan.get('total_forklifts_used')} forklifts"),
-        bullet(f"Est. completion: {makespan_str}"),
-        divider(),
-        h2("Forklift Assignments"),
+    qty_line = f"- **Quantity**: {plan.get('quantity_planned')} units"
+    if plan.get("insufficient_stock"):
+        qty_line += f"  ⚠ only {plan.get('quantity_available')} available"
+    lines.append(qty_line)
+
+    lines += [
+        f"- **Route**: {plan.get('origin_zone')} → {plan.get('destination_zone')}",
+        f"- **Forklifts**: {plan.get('total_forklifts_used')} · {plan.get('total_trips')} total trips",
+        f"- **Est. completion**: {makespan_str}",
+        "",
+        "---",
+        "",
+        "## 🚜 Forklift Assignments",
+        "",
+        "| Forklift | Trips | Units | Est. Time |",
+        "|----------|-------|-------|-----------|",
     ]
 
     for a in plan.get("assignments", []):
-        children.append(bullet(
-            f"{a['forklift_name']}  —  {a['trips']} trip(s), "
-            f"{a['units_assigned']} units, est. {a['estimated_seconds']}s"
-        ))
+        lines.append(
+            f"| {a['forklift_name']} | ×{a['trips']} | {a['units_assigned']} units | {a['estimated_seconds']}s |"
+        )
 
     if task_ids:
-        children += [
-            divider(),
-            h2("Created Task IDs"),
-            {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{"type": "text", "text": {
-                        "content": ", ".join(str(t) for t in task_ids)
-                    }}]
-                },
-            },
+        lines += [
+            "",
+            "---",
+            "",
+            "## ✅ Created Task IDs",
+            "",
+            ", ".join(str(t) for t in task_ids),
         ]
 
     create_args = {
+        "parent": {"page_id": parent_page_id},
         "pages": [
             {
-                "parent": {"type": "page_id", "page_id": parent_page_id},
-                "properties": {
-                    "title": {"title": [{"text": {"content": title}}]}
-                },
-                "children": children,
+                "properties": {"title": title},
+                "content": "\n".join(lines),
+                "icon": "🤖",
             }
-        ]
+        ],
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -314,8 +319,6 @@ async def create_execution_report(
         result = await _tool_call(client, access_token, sid, "notion-create-pages", create_args)
 
     logger.info("notion-create-pages raw result: %s", json.dumps(result)[:3000])
-    page_data = _extract_tool_content(result)
-    logger.info("notion-create-pages extracted: %s", json.dumps(page_data)[:1000])
-    url = page_data.get("url", "")
+    url = _extract_created_page_url(result)
     logger.info("Notion execution report created: %s", url)
     return url
