@@ -297,11 +297,15 @@ async def create_execution_report(
         ]
 
     create_args = {
-        "parent": {"type": "page_id", "page_id": parent_page_id},
-        "properties": {
-            "title": {"title": [{"text": {"content": title}}]}
-        },
-        "children": children,
+        "pages": [
+            {
+                "parent": {"type": "page_id", "page_id": parent_page_id},
+                "properties": {
+                    "title": {"title": [{"text": {"content": title}}]}
+                },
+                "children": children,
+            }
+        ]
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
