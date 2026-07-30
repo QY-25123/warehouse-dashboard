@@ -309,7 +309,9 @@ async def create_execution_report(
         logger.info("Creating Notion page via notion-create-pages")
         result = await _tool_call(client, access_token, sid, "notion-create-pages", create_args)
 
+    logger.info("notion-create-pages raw result: %s", json.dumps(result)[:3000])
     page_data = _extract_tool_content(result)
+    logger.info("notion-create-pages extracted: %s", json.dumps(page_data)[:1000])
     url = page_data.get("url", "")
     logger.info("Notion execution report created: %s", url)
     return url
