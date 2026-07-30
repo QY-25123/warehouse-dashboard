@@ -97,6 +97,7 @@ class AIPlanRequest(BaseModel):
 
 class AIExecuteRequest(BaseModel):
     plan: dict[str, Any]
+    explanation: Optional[str] = None
 
 
 class UpdateCapacityRequest(BaseModel):

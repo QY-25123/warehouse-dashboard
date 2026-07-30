@@ -5,6 +5,7 @@ Claude uses tool_use to interpret natural language, look up inventory and
 forklift state, then generate an optimised multi-forklift execution plan.
 """
 
+import asyncio
 import json
 import math
 import os
@@ -447,7 +448,32 @@ async def execute_plan(
                 },
             )
 
-    return {"tasks_created": len(task_ids), "task_ids": task_ids}
+    # Fire-and-forget: push execution report to Notion if connected
+    notion_url = ""
+    try:
+        from app.notion_mcp_client import create_execution_report, NotionMCPError  # noqa: PLC0415
+        notion_row = await pool.fetchrow(
+            "SELECT access_token, parent_page_id FROM notion_tokens WHERE id = 1"
+        )
+        if notion_row and notion_row["parent_page_id"]:
+            notion_url = await asyncio.wait_for(
+                create_execution_report(
+                    access_token=notion_row["access_token"],
+                    parent_page_id=notion_row["parent_page_id"],
+                    plan=plan,
+                    explanation=body.explanation or "",
+                    task_ids=task_ids,
+                ),
+                timeout=20.0,
+            )
+    except (NotionMCPError, asyncio.TimeoutError, Exception) as exc:
+        logger.warning("Notion report skipped: %s", exc)
+
+    return {
+        "tasks_created": len(task_ids),
+        "task_ids": task_ids,
+        "notion_url": notion_url or None,
+    }
 
 
 @router.get("/settings")

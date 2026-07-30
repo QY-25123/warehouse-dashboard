@@ -5,6 +5,7 @@ import type {
   AIPlan, AIForkliftCapacity,
   TelegramConversation, TelegramConversationDetail,
   EmailOrder, RawEmail,
+  NotionStatus, NotionPage,
 } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -119,13 +120,17 @@ export const api = {
       return res.json();
     },
 
-    execute: async (plan: AIPlan, token?: string): Promise<{ tasks_created: number; task_ids: number[] }> => {
+    execute: async (
+      plan: AIPlan,
+      explanation: string,
+      token?: string,
+    ): Promise<{ tasks_created: number; task_ids: number[]; notion_url?: string }> => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`${BASE}/ai/execute`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, explanation }),
       });
       if (!res.ok) throw new Error(`Execute failed (${res.status})`);
       return res.json();
@@ -234,6 +239,53 @@ export const api = {
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
       await fetch(`${BASE}/gmail/orders/${id}`, { method: 'DELETE', headers });
+    },
+  },
+
+  notion: {
+    status: (token?: string) =>
+      get<NotionStatus>('/notion/status', undefined, token),
+
+    connect: async (payload: {
+      access_token: string;
+      refresh_token: string;
+      workspace_id: string;
+      workspace_name: string;
+      client_id: string;
+    }, token?: string): Promise<NotionStatus> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/notion/connect`, {
+        method: 'POST', headers, body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Notion connect failed (${res.status})`);
+      return res.json();
+    },
+
+    disconnect: async (token?: string): Promise<void> => {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(`${BASE}/notion/disconnect`, { method: 'DELETE', headers });
+    },
+
+    searchPages: async (query: string, token?: string): Promise<NotionPage[]> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/notion/search-pages`, {
+        method: 'POST', headers, body: JSON.stringify({ query }),
+      });
+      if (!res.ok) throw new Error(`Page search failed (${res.status})`);
+      return res.json();
+    },
+
+    setParent: async (pageId: string, pageTitle: string, token?: string): Promise<void> => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${BASE}/notion/set-parent`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ page_id: pageId, page_title: pageTitle }),
+      });
+      if (!res.ok) throw new Error(`Set parent failed (${res.status})`);
     },
   },
 } as const;

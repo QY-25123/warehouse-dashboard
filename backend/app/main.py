@@ -11,7 +11,7 @@ from app.database import create_pool
 from app.ws_manager import manager as ws_manager
 from app import simulator
 from app.routers import forklifts, tasks, inventory, alerts, events
-from app.routers import ws, admin, analytics, ai_workflow, telegram_bot, gmail_orders
+from app.routers import ws, admin, analytics, ai_workflow, telegram_bot, gmail_orders, notion
 
 logging.basicConfig(
     level=logging.INFO,
@@ -97,6 +97,7 @@ app.include_router(analytics.router)
 app.include_router(ai_workflow.router)
 app.include_router(telegram_bot.router)
 app.include_router(gmail_orders.router)
+app.include_router(notion.router)
 
 
 @app.get("/health")

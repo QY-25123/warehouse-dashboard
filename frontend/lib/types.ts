@@ -271,3 +271,20 @@ export interface RawEmail {
   date: string;
   snippet: string;
 }
+
+// ── Notion integration types ──────────────────────────────────────────────────
+
+export interface NotionStatus {
+  connected: boolean;
+  workspace_name?: string;
+  workspace_id?: string;
+  parent_page_id?: string | null;
+  parent_page_title?: string | null;
+  connected_at?: string;
+}
+
+export interface NotionPage {
+  id: string;
+  title: string;
+  url: string;
+}

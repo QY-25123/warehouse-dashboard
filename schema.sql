@@ -224,3 +224,17 @@ DROP TRIGGER IF EXISTS on_profile_role_updated ON profiles;
 CREATE TRIGGER on_profile_role_updated
   AFTER UPDATE OF role ON profiles
   FOR EACH ROW EXECUTE FUNCTION public.sync_role_to_claims();
+
+-- ── Notion OAuth token (app-level, single row) ────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS notion_tokens (
+    id                 INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    access_token       TEXT        NOT NULL,
+    refresh_token      TEXT,
+    client_id          TEXT,
+    workspace_id       TEXT,
+    workspace_name     TEXT,
+    parent_page_id     TEXT,
+    parent_page_title  TEXT,
+    connected_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

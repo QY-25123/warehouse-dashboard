@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useCallback, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, type CSSProperties } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getClientToken } from '@/lib/client-auth';
 import { useAuth } from '@/contexts/AuthContext';
-import type { AIPlan, AIForkliftCapacity, AITripAssignment } from '@/lib/types';
+import type { AIPlan, AIForkliftCapacity, AITripAssignment, NotionStatus } from '@/lib/types';
+import { NotionConnect } from '@/components/NotionConnect';
 
 // ── Styling constants ─────────────────────────────────────────────────────────
 
@@ -295,14 +297,26 @@ interface Props {
 export function AIWorkflow({ initialCapacities }: Props) {
   const { role } = useAuth();
 
-  const [message, setMessage]     = useState('');
-  const [planning, setPlanning]   = useState(false);
-  const [executing, setExecuting] = useState(false);
-  const [plan, setPlan]           = useState<AIPlan | null>(null);
-  const [explanation, setExplan]  = useState('');
-  const [error, setError]         = useState('');
-  const [successMsg, setSuccess]  = useState('');
+  const searchParams = useSearchParams();
+
+  const [message, setMessage]       = useState('');
+  const [planning, setPlanning]     = useState(false);
+  const [executing, setExecuting]   = useState(false);
+  const [plan, setPlan]             = useState<AIPlan | null>(null);
+  const [explanation, setExplan]    = useState('');
+  const [error, setError]           = useState('');
+  const [successMsg, setSuccess]    = useState('');
+  const [notionUrl, setNotionUrl]   = useState<string | null>(null);
   const [capacities, setCapacities] = useState<AIForkliftCapacity[]>(initialCapacities);
+  const [notionStatus, setNotionStatus] = useState<NotionStatus>({ connected: false });
+
+  // Show a toast when redirected back from Notion OAuth
+  useEffect(() => {
+    if (searchParams.get('notion') === 'connected') {
+      setSuccess('✓ Notion connected successfully. Pick a parent page below.');
+      window.history.replaceState(null, '', '/ai');
+    }
+  }, [searchParams]);
 
   const generatePlan = useCallback(async () => {
     if (!message.trim()) return;
@@ -327,13 +341,15 @@ export function AIWorkflow({ initialCapacities }: Props) {
     if (!plan) return;
     setExecuting(true);
     setError('');
+    setNotionUrl(null);
     try {
       const token = await getClientToken();
-      const result = await api.ai.execute(plan, token);
+      const result = await api.ai.execute(plan, explanation, token);
       setSuccess(
         `✓ ${result.tasks_created} task${result.tasks_created !== 1 ? 's' : ''} submitted to the simulator. ` +
         `The forklifts will pick them up automatically.`
       );
+      if (result.notion_url) setNotionUrl(result.notion_url);
       setPlan(null);
       setMessage('');
     } catch (e: unknown) {
@@ -341,7 +357,7 @@ export function AIWorkflow({ initialCapacities }: Props) {
     } finally {
       setExecuting(false);
     }
-  }, [plan]);
+  }, [plan, explanation]);
 
   const updateCapacity = useCallback(async (id: number, capacity: number) => {
     const token = await getClientToken();
@@ -448,18 +464,34 @@ export function AIWorkflow({ initialCapacities }: Props) {
             background: '#4ADE8012', border: '1px solid #4ADE8030',
             borderRadius: 8, padding: '12px 16px', marginBottom: 16,
             fontSize: 13, color: '#4ADE80',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <span>{successMsg}</span>
-            <Link
-              href="/tasks"
-              style={{
-                color: '#4ADE80', fontWeight: 600, fontSize: 12,
-                textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 12,
-              }}
-            >
-              View Tasks →
-            </Link>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{successMsg}</span>
+              <Link
+                href="/tasks"
+                style={{
+                  color: '#4ADE80', fontWeight: 600, fontSize: 12,
+                  textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 12,
+                }}
+              >
+                View Tasks →
+              </Link>
+            </div>
+            {notionUrl && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #4ADE8020' }}>
+                <a
+                  href={notionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 12, color: '#A78BFA',
+                    textDecoration: 'none', fontWeight: 500,
+                  }}
+                >
+                  📄 View execution report in Notion →
+                </a>
+              </div>
+            )}
           </div>
         )}
 
@@ -474,6 +506,11 @@ export function AIWorkflow({ initialCapacities }: Props) {
             />
           </div>
         )}
+
+        {/* Notion reports integration */}
+        <div style={{ marginBottom: 16 }}>
+          <NotionConnect onStatusChange={setNotionStatus} />
+        </div>
 
         {/* Capacity settings (admin only) */}
         {role === 'admin' && capacities.length > 0 && (
