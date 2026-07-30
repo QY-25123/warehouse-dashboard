@@ -102,6 +102,24 @@ async def disconnect(
     await pool.execute("DELETE FROM notion_tokens WHERE id = 1")
 
 
+@router.get("/debug-tools")
+async def debug_tools(
+    pool: asyncpg.Pool = Depends(get_pool),
+    _user: dict = Depends(get_current_user),
+) -> list[dict]:
+    """List all tool names + input schemas exposed by the Notion MCP server."""
+    from app.notion_mcp_client import list_tools, NotionMCPError  # noqa: PLC0415
+    row = await _get_token_row(pool)
+    if not row:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Notion not connected")
+    try:
+        tools = await list_tools(row["access_token"])
+        return [{"name": t["name"], "description": t.get("description", ""),
+                 "input_schema": t.get("inputSchema", t.get("input_schema", {}))} for t in tools]
+    except NotionMCPError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+
 @router.post("/search-pages")
 async def search_pages_proxy(
     body: dict[str, Any],
