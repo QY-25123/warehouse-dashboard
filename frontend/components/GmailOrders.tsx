@@ -92,7 +92,8 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
   const [draft, setDraft] = useState({
     extracted_item_name:        order.extracted_item_name ?? '',
     extracted_quantity:         String(order.extracted_quantity ?? ''),
-    extracted_destination_zone: order.extracted_destination_zone ?? 'SHIP',
+    extracted_origin_zone:      order.extracted_origin_zone ?? '',
+    extracted_destination_zone: order.extracted_destination_zone ?? '',
     extracted_notes:            order.extracted_notes ?? '',
   });
   const [saving, setSaving]   = useState(false);
@@ -109,6 +110,7 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
       await onSave(order.id, {
         extracted_item_name:        draft.extracted_item_name,
         extracted_quantity:         parseInt(draft.extracted_quantity, 10) || order.extracted_quantity!,
+        extracted_origin_zone:      draft.extracted_origin_zone,
         extracted_destination_zone: draft.extracted_destination_zone,
         extracted_notes:            draft.extracted_notes,
       });
@@ -151,7 +153,25 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
             {order.sender} · {order.created_at ? new Date(order.created_at).toLocaleString() : ''}
           </p>
         </div>
-        <StatusBadge status={order.status} />
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {order.extracted_task_type && (() => {
+            const TYPE_COLOR: Record<string, string> = {
+              inbound: '#22D3EE', outbound: '#FB923C',
+              relocation: '#A78BFA', replenishment: '#4ADE80',
+            };
+            const c = TYPE_COLOR[order.extracted_task_type] ?? '#9E9AAA';
+            return (
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: c,
+                background: `${c}15`, border: `1px solid ${c}30`,
+                borderRadius: 999, padding: '2px 8px', letterSpacing: '0.08em',
+              }}>
+                {order.extracted_task_type.toUpperCase()}
+              </span>
+            );
+          })()}
+          <StatusBadge status={order.status} />
+        </div>
       </div>
 
       {/* Original email body (collapsible) */}
@@ -210,6 +230,18 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
         </div>
         <div>
           <label style={{ fontSize: 11, color: '#7B778A', display: 'block', marginBottom: 4 }}>
+            Origin zone
+          </label>
+          <input
+            style={INPUT}
+            value={draft.extracted_origin_zone}
+            onChange={e => setDraft(d => ({ ...d, extracted_origin_zone: e.target.value }))}
+            disabled={!editable}
+            placeholder="e.g. DOCK, STOR, A1"
+          />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#7B778A', display: 'block', marginBottom: 4 }}>
             Destination zone
           </label>
           <input
@@ -217,7 +249,7 @@ function OrderCard({ order, onSave, onApprove, onReject }: OrderCardProps) {
             value={draft.extracted_destination_zone}
             onChange={e => setDraft(d => ({ ...d, extracted_destination_zone: e.target.value }))}
             disabled={!editable}
-            placeholder="SHIP"
+            placeholder="e.g. SHIP, B2"
           />
         </div>
         <div>
@@ -449,7 +481,7 @@ export function GmailOrders({ initialOrders }: Props) {
         </h1>
         <p style={{ fontSize: 12, color: '#9E9AAA', marginTop: 4 }}>
           Emails from <span style={{ color: '#D8D0E8' }}>qijie_jerry@163.com</span> are read via
-          Gmail MCP — Claude extracts outbound orders for your review.
+          Gmail MCP — Claude extracts inbound and outbound orders for your review.
         </p>
       </div>
 

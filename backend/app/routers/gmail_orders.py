@@ -30,8 +30,10 @@ _MONITORED_SENDER = os.getenv("GMAIL_MONITORED_SENDER", "qijie_jerry@163.com")
 
 # Fields the manager is allowed to patch (allowlist prevents SQL injection)
 _PATCHABLE: dict[str, str] = {
+    "extracted_task_type":         "extracted_task_type",
     "extracted_item_name":         "extracted_item_name",
     "extracted_quantity":          "extracted_quantity",
+    "extracted_origin_zone":       "extracted_origin_zone",
     "extracted_destination_zone":  "extracted_destination_zone",
     "extracted_notes":             "extracted_notes",
 }
@@ -47,8 +49,10 @@ def _row_to_dict(row: asyncpg.Record) -> dict[str, Any]:
         "subject":                    row["subject"],
         "email_body":                 row["email_body"],
         "received_at":                row["received_at"].isoformat() if row["received_at"] else None,
+        "extracted_task_type":        row["extracted_task_type"],
         "extracted_item_name":        row["extracted_item_name"],
         "extracted_quantity":         row["extracted_quantity"],
+        "extracted_origin_zone":      row["extracted_origin_zone"],
         "extracted_destination_zone": row["extracted_destination_zone"],
         "extracted_notes":            row["extracted_notes"],
         "status":                     row["status"],
@@ -82,7 +86,7 @@ async def extract_order(
     pool: asyncpg.Pool = Depends(get_pool),
     _user: dict = Depends(get_current_user),
 ):
-    """Claude reads the email via MCP and extracts a structured outbound order."""
+    """Claude reads the email via MCP and extracts a structured warehouse task (all 4 types)."""
     # Return cached result if this email was already processed
     existing = await pool.fetchrow(
         "SELECT * FROM email_orders WHERE message_id=$1", message_id
@@ -112,29 +116,33 @@ async def extract_order(
             detail=f"Email is not from the monitored sender ({_MONITORED_SENDER}).",
         )
 
-    if not order.get("is_order"):
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No outbound order found in this email.",
-        )
+    is_order  = order.get("is_order", False)
+    task_type = order.get("task_type") if is_order else None
+
+    _DEFAULT_ORIGIN = {"inbound": "DOCK", "replenishment": "STOR"}
+    _DEFAULT_DEST   = {"outbound": "SHIP"}
+    origin_zone = (order.get("origin_zone") or _DEFAULT_ORIGIN.get(task_type or "")) if is_order else None
+    dest_zone   = (order.get("destination_zone") or _DEFAULT_DEST.get(task_type or "")) if is_order else None
 
     row = await pool.fetchrow(
         """
         INSERT INTO email_orders
           (message_id, sender, subject, email_body, received_at,
-           extracted_item_name, extracted_quantity, extracted_destination_zone,
-           extracted_notes, status)
-        VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,'pending_review')
+           extracted_task_type, extracted_item_name, extracted_quantity,
+           extracted_origin_zone, extracted_destination_zone, extracted_notes, status)
+        VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,$9,$10,'pending_review')
         RETURNING *
         """,
         message_id,
         email.get("sender", _MONITORED_SENDER),
         email.get("subject"),
         email.get("body"),
-        order.get("item_name"),
-        order.get("quantity"),
-        order.get("destination_zone") or "SHIP",
-        order.get("notes"),
+        task_type,
+        order.get("item_name") if is_order else None,
+        order.get("quantity")  if is_order else None,
+        origin_zone,
+        dest_zone,
+        order.get("notes")     if is_order else None,
     )
     return _row_to_dict(row)
 
@@ -217,7 +225,9 @@ async def approve_order(
 
     item_name   = row["extracted_item_name"]
     quantity    = row["extracted_quantity"]
-    destination = row["extracted_destination_zone"] or "SHIP"
+    task_type   = row["extracted_task_type"] or "outbound"
+    origin      = row["extracted_origin_zone"]
+    destination = row["extracted_destination_zone"]
 
     if not item_name or not quantity:
         raise HTTPException(
@@ -229,7 +239,14 @@ async def approve_order(
         "UPDATE email_orders SET status='generating' WHERE id=$1", order_id
     )
 
-    planning_msg = f"outbound {quantity} units of {item_name} to {destination}"
+    if task_type == "relocation" and origin and destination:
+        planning_msg = f"move {quantity} units of {item_name} from {origin} to {destination}"
+    elif task_type == "replenishment":
+        planning_msg = f"restock {quantity} units of {item_name}" + (f" to {destination}" if destination else "")
+    elif task_type == "inbound":
+        planning_msg = f"inbound {quantity} units of {item_name}" + (f" to {destination}" if destination else "")
+    else:
+        planning_msg = f"outbound {quantity} units of {item_name}" + (f" to {destination}" if destination else "")
     try:
         async with pool.acquire() as conn:
             result = await _run_planning_agent(planning_msg, conn)
@@ -267,8 +284,9 @@ async def approve_order(
                         "INSERT INTO tasks "
                         "(type, status, forklift_id, origin_zone, destination_zone, "
                         " inventory_item_id, planned_quantity, source, created_at, updated_at) "
-                        "VALUES ('outbound','pending',$1,$2,$3,$4,$5,'gmail',NOW(),NOW()) "
+                        "VALUES ($1::task_type,'pending',$2,$3,$4,$5,$6,'gmail',NOW(),NOW()) "
                         "RETURNING id",
+                        plan.get("task_type", "outbound"),
                         fid,
                         plan["origin_zone"],
                         plan["destination_zone"],

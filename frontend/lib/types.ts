@@ -254,8 +254,10 @@ export interface EmailOrder {
   subject: string | null;
   email_body: string | null;
   received_at: string | null;
+  extracted_task_type: 'inbound' | 'outbound' | 'relocation' | 'replenishment' | null;
   extracted_item_name: string | null;
   extracted_quantity: number | null;
+  extracted_origin_zone: string | null;
   extracted_destination_zone: string | null;
   extracted_notes: string | null;
   status: EmailOrderStatus;

@@ -36,14 +36,23 @@ You are an order intake assistant for a warehouse management system.
 
 When given an email message ID:
 1. Call get_email to read its full content.
-2. Extract any outbound order: item name, quantity (required), destination zone (default SHIP).
-3. Call confirm_order with the structured result.
+2. Identify the task type from the email:
+   - "inbound"       — goods arriving into the warehouse (e.g. "receive", "inbound", "arriving")
+   - "outbound"      — goods shipped out (e.g. "ship", "outbound", "dispatch", "send")
+   - "relocation"    — move stock from one zone to another (e.g. "move", "relocate", "transfer")
+   - "replenishment" — restock a zone from bulk storage (e.g. "restock", "replenish", "refill")
+3. Extract item name, quantity, and zones as appropriate (see rules).
+4. Call confirm_order with the structured result.
 
-Rules:
-- Task type is always "outbound" (goods shipped out of the warehouse).
-- Destination is SHIP unless the email explicitly names another zone.
+Zone rules:
+- inbound:       origin_zone=DOCK,  destination_zone=item's storage zone (leave blank if unknown)
+- outbound:      origin_zone=blank, destination_zone=SHIP
+- relocation:    origin_zone=source zone stated in email, destination_zone=target zone stated in email
+- replenishment: origin_zone=STOR,  destination_zone=zone to restock (leave blank if unknown)
+
+General rules:
 - Quantities must be positive integers; extract exactly what is stated.
-- If the email contains no clear outbound order, call confirm_order with is_order=false.
+- If no clear warehouse task is found, call confirm_order with is_order=false.
 - Never guess quantities — if unclear, set is_order=false.
 - Keep your notes brief and factual.\
 """
@@ -52,26 +61,35 @@ _CONFIRM_TOOL: dict[str, Any] = {
     "name": "confirm_order",
     "description": (
         "Call this once you have read the email and determined whether it contains "
-        "an outbound order. Always call this — even when no order is found."
+        "a warehouse task. Always call this — even when no task is found."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
             "is_order": {
                 "type": "boolean",
-                "description": "True if a clear outbound order was found",
+                "description": "True if a clear warehouse task was found",
+            },
+            "task_type": {
+                "type": "string",
+                "enum": ["inbound", "outbound", "relocation", "replenishment"],
+                "description": "Type of warehouse task",
             },
             "item_name": {
                 "type": "string",
-                "description": "Exact item name to ship (required when is_order=true)",
+                "description": "Exact item name (required when is_order=true)",
             },
             "quantity": {
                 "type": "integer",
-                "description": "Number of units to ship (required when is_order=true)",
+                "description": "Number of units (required when is_order=true)",
+            },
+            "origin_zone": {
+                "type": "string",
+                "description": "Source zone (DOCK for inbound, STOR for replenishment, explicit zone for relocation)",
             },
             "destination_zone": {
                 "type": "string",
-                "description": "Destination zone code (default SHIP)",
+                "description": "Destination zone (SHIP for outbound, explicit zone for relocation/replenishment)",
             },
             "notes": {
                 "type": "string",
@@ -148,7 +166,7 @@ async def extract_order_from_email(message_id: str) -> dict[str, Any]:
                 {
                     "role": "user",
                     "content": (
-                        f"Please read email with ID '{message_id}' and extract any outbound order."
+                        f"Please read email with ID '{message_id}' and extract any warehouse order (inbound or outbound)."
                     ),
                 }
             ]

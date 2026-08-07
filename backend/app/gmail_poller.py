@@ -67,6 +67,12 @@ async def _poll(pool: asyncpg.Pool) -> None:
         order      = result.get("order") or {}
         email_data = result.get("email") or {}
         is_order   = order.get("is_order", False)
+        task_type  = order.get("task_type") if is_order else None
+
+        _DEFAULT_ORIGIN = {"inbound": "DOCK", "replenishment": "STOR"}
+        _DEFAULT_DEST   = {"outbound": "SHIP"}
+        origin_zone = (order.get("origin_zone") or _DEFAULT_ORIGIN.get(task_type or "")) if is_order else None
+        dest_zone   = (order.get("destination_zone") or _DEFAULT_DEST.get(task_type or "")) if is_order else None
 
         # Save to DB — always pending_review so humans can review even if Claude
         # found no order (extraction may fail on HTML-only emails or ambiguous content).
@@ -74,9 +80,9 @@ async def _poll(pool: asyncpg.Pool) -> None:
             """
             INSERT INTO email_orders
               (message_id, sender, subject, email_body, received_at,
-               extracted_item_name, extracted_quantity, extracted_destination_zone,
-               extracted_notes, status)
-            VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,'pending_review')
+               extracted_task_type, extracted_item_name, extracted_quantity,
+               extracted_origin_zone, extracted_destination_zone, extracted_notes, status)
+            VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,$9,$10,'pending_review')
             ON CONFLICT (message_id) DO NOTHING
             RETURNING id, status
             """,
@@ -84,10 +90,12 @@ async def _poll(pool: asyncpg.Pool) -> None:
             email_data.get("sender", _SENDER),
             email_data.get("subject"),
             email_data.get("body"),
-            order.get("item_name")                    if is_order else None,
-            order.get("quantity")                     if is_order else None,
-            (order.get("destination_zone") or "SHIP") if is_order else None,
-            order.get("notes")                        if is_order else None,
+            task_type,
+            order.get("item_name") if is_order else None,
+            order.get("quantity")  if is_order else None,
+            origin_zone,
+            dest_zone,
+            order.get("notes")     if is_order else None,
         )
 
         if row:
