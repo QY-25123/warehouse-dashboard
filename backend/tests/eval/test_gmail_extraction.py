@@ -112,3 +112,28 @@ async def test_vague_quantity_does_not_get_guessed(monkeypatch):
 
     assert order is not None
     assert order["is_order"] is False, "quantity is unspecified — must not fabricate one"
+
+
+@requires_live_services
+async def test_extracts_relocation_order_with_both_zones(monkeypatch):
+    """
+    Relocation has a distinct zone-extraction rule (both origin and
+    destination come from the email text, unlike outbound/inbound where
+    one side is always SHIP/DOCK) — untested by the other cases here.
+    """
+    email = {
+        "id": "fake-message-id",
+        "subject": "Move stock",
+        "sender": "manager@example.com",
+        "body": "Please relocate 12 units of Wire Rope 10m from zone A3 to zone B2.",
+    }
+    result = await _extract(monkeypatch, email)
+    order = result["order"]
+
+    assert order is not None
+    assert order["is_order"] is True
+    assert order["task_type"] == "relocation"
+    assert order["quantity"] == 12
+    assert "wire rope" in order["item_name"].lower()
+    assert order["origin_zone"] == "A3"
+    assert order["destination_zone"] == "B2"

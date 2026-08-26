@@ -132,3 +132,78 @@ async def test_insufficient_stock_is_reported_not_fabricated(conn):
     assert plan["insufficient_stock"] is True
     assert plan["quantity_available"] == row["quantity"]
     assert plan["quantity_planned"] <= row["quantity"]
+
+
+@requires_live_services
+async def test_no_idle_forklifts_blocks_plan_creation(conn, monkeypatch):
+    """Hard requirement: an empty forklift list must block create_execution_plan entirely."""
+
+    async def no_forklifts(_conn):
+        return []
+
+    monkeypatch.setattr(aw, "_tool_get_forklifts", no_forklifts)
+
+    result = await aw._run_agent("outbound 5 units of safety gloves", conn)
+    assert result["plan"] is None, "must not create a plan when no forklifts are available"
+
+
+@requires_live_services
+async def test_replenishment_plan_grounded_in_real_inventory(conn):
+    """
+    Covers the 4th task type (replenishment), untested elsewhere in this file,
+    and its distinct rule: quantity comes from bulk storage (STOR), so it is
+    NOT capped by the item's current on-hand quantity like outbound/relocation are.
+    """
+    row = await conn.fetchrow(
+        "SELECT id, item_name, location_zone FROM inventory WHERE item_name ILIKE '%forklift battery%'"
+    )
+    assert row is not None, "fixture assumption broken — reseed the DB with seed.sql"
+
+    message = f"restock {row['item_name']} in zone {row['location_zone']}, add 20 units"
+    result = await aw._run_agent(message, conn)
+    plan = result["plan"]
+
+    assert plan is not None, "agent failed to produce a plan for a well-formed replenishment request"
+    assert plan["ok"] is True
+    assert plan["task_type"] == "replenishment"
+    assert plan["origin_zone"] == "STOR"
+    assert plan["destination_zone"] == row["location_zone"]
+    assert plan["quantity_planned"] == plan["quantity_requested"], (
+        "replenishment quantity must not be capped by current on-hand stock"
+    )
+
+
+@requires_live_services
+async def test_large_quantity_splits_across_multiple_forklifts(conn):
+    """
+    _compute_plan round-robins trips across idle forklifts closest-first —
+    this is the first test that actually forces a multi-forklift split,
+    rather than the single-forklift case every other test exercises.
+    """
+    forklifts = await conn.fetch("SELECT capacity FROM forklifts WHERE status = 'idle'")
+    assert forklifts, "fixture assumption broken — need idle forklifts in the DB"
+    max_capacity = max(r["capacity"] for r in forklifts)
+
+    row = await conn.fetchrow(
+        "SELECT id, item_name, quantity, location_zone FROM inventory WHERE item_name ILIKE '%industrial bolts%'"
+    )
+    assert row is not None, "fixture assumption broken — reseed the DB with seed.sql"
+
+    requested = min(max_capacity + 50, row["quantity"])
+    assert requested > max_capacity, (
+        "fixture assumption broken — not enough stock to force a multi-forklift split"
+    )
+
+    message = f"outbound {requested} units of {row['item_name']}"
+    result = await aw._run_agent(message, conn)
+    plan = result["plan"]
+
+    assert plan is not None
+    assert plan["ok"] is True
+    assert plan["total_forklifts_used"] > 1, (
+        "a quantity exceeding any single forklift's capacity must be split across >1 forklift"
+    )
+    assigned_total = sum(a["units_assigned"] for a in plan["assignments"])
+    assert assigned_total == plan["quantity_planned"]
+    for a in plan["assignments"]:
+        assert a["units_assigned"] <= a["capacity"] * a["trips"]

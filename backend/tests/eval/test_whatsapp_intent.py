@@ -46,3 +46,13 @@ async def test_reply_is_brief_and_hides_internals():
         LLMTestCase(input=messages[-1]["content"], actual_output=result["text"]),
         [_brevity_metric()],
     )
+
+
+@requires_live_services
+async def test_asks_clarifying_question_when_info_is_missing():
+    """Mirrors telegram's equivalent case — untested for the WhatsApp agent until now."""
+    messages = [{"role": "user", "content": "can you help me with something in the warehouse?"}]
+    result = await _run_intent_agent(messages)
+
+    assert result["intent"] is None, "should not call confirm_intent with missing task info"
+    assert result["text"].strip() != "", "should ask a clarifying question instead"

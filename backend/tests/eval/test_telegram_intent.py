@@ -49,3 +49,29 @@ async def test_asks_one_clarifying_question_when_info_is_missing():
 
     assert result["intent"] is None, "should not call confirm_intent with missing task info"
     assert result["text"].strip() != "", "should ask a clarifying question instead"
+
+
+@requires_live_services
+async def test_multi_item_request_uses_items_array():
+    """
+    Rule 2 in _INTENT_SYSTEM: multiple items in one message must use the
+    `items` array, not be split into a single item_query — untested by the
+    other cases here, which are all single-item.
+    """
+    inventory = [
+        {"item_name": "Safety Gloves L", "location_zone": "A1", "quantity": 120},
+        {"item_name": "Hydraulic Oil 5L", "location_zone": "A2", "quantity": 30},
+    ]
+    messages = [{"role": "user", "content": "inbound 50 units each for item 1 and item 2"}]
+    result = await _run_intent_agent(messages, inventory=inventory)
+    intent = result["intent"]
+
+    assert intent is not None, "agent should have called confirm_intent for a complete request"
+    assert intent["task_type"] == "inbound"
+    items = intent.get("items")
+    assert items is not None and len(items) == 2, (
+        "multiple items in one request must use the items array, not a single item_query"
+    )
+    resolved = " ".join(str(i.get("item_query", "")).lower() for i in items)
+    assert "glove" in resolved or "safety" in resolved
+    assert "hydraulic" in resolved or "oil" in resolved
