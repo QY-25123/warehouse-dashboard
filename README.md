@@ -87,26 +87,22 @@ Expected sheet columns: `Item Name`, `Task Type`, `Quantity`, `Origin Zone`, `De
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                            Docker Compose                               │
-│                                                                         │
-│  ┌──────────────┐    ┌────────────────────────┐    ┌─────────────────┐  │
-│  │  PostgreSQL  │◄───│    FastAPI backend      │◄───│  Next.js 14     │  │
-│  │  (port 5432) │    │    (port 8000)          │    │  (port 3000)    │  │
-│  │              │    │                         │    │                 │  │
-│  │  schema.sql  │    │  REST endpoints         │    │  App Router     │  │
-│  │  seed.sql    │    │  WebSocket /ws/events   │    │  TypeScript     │  │
-│  │  10 tables   │    │  IoT simulator (2s)     │    │  Tailwind CSS   │  │
-│  │              │    │  Sheets poller (60s)    │    │  Supabase Auth  │  │
-│  │  Supabase    │    │  Telegram bot (polling) │    │                 │  │
-│  │  Auth layer  │    │  Claude AI planner      │    │                 │  │
-│  └──────────────┘    └────────────────────────┘    └─────────────────┘  │
-│         ▲                       │                          │             │
-│         │    asyncpg            │  WS batch frames         │  browser    │
-│         └───────────────────────┘        ┌─────────────────┘             │
-│                                          │ NEXT_PUBLIC_API_URL            │
-│                                          ▼ (baked at build time)         │
-└─────────────────────────────────────────────────────────────────────────┘
+┌──────────────┐        ┌────────────────────────┐        ┌─────────────────┐
+│  Supabase    │◄───────│    FastAPI backend      │◄───────│  Next.js 14     │
+│  Postgres    │        │    (EC2, port 8000)     │        │  (Vercel)       │
+│              │        │                         │        │                 │
+│  schema.sql  │        │  REST endpoints         │        │  App Router     │
+│  seed.sql    │        │  WebSocket /ws/events   │        │  TypeScript     │
+│  10 tables   │        │  IoT simulator (2s)     │        │  Tailwind CSS   │
+│              │        │  Sheets poller (60s)    │        │  Supabase Auth  │
+│  Supabase    │        │  Telegram/WhatsApp bots │        │                 │
+│  Auth layer  │        │  Claude AI planner      │        │                 │
+└──────────────┘        └────────────────────────┘        └─────────────────┘
+       ▲                          │                                 │
+       │    asyncpg               │  WS batch frames                │  browser
+       └──────────────────────────┘        ┌────────────────────────┘
+                                            │ NEXT_PUBLIC_API_URL
+                                            ▼ (baked at build time)
 ```
 
 **Data flow:**
@@ -148,11 +144,13 @@ Expected sheet columns: `Item Name`, `Task Type`, `Quantity`, `Origin Zone`, `De
 
 ### Infrastructure
 
-| Component | Version | Notes |
-|-----------|---------|-------|
-| PostgreSQL | 16-alpine | Schema + seed applied via Docker entrypoint |
-| Docker Compose | v2 | Three-service stack with health checks |
-| Supabase | hosted | Auth provider (JWT-based, JWKS endpoint) |
+| Component | Notes |
+|-----------|-------|
+| Supabase Postgres | Hosted DB — apply `schema.sql` + `seed.sql` directly |
+| Supabase Auth | JWT-based, JWKS endpoint |
+| Backend hosting | Plain EC2 instance running `uvicorn` |
+| Frontend hosting | Vercel |
+| Arize Phoenix Cloud | LLM tracing/observability (optional, see `backend/.env.example`) |
 
 ---
 
@@ -223,96 +221,66 @@ Interactive Swagger UI available at **http://localhost:8000/docs** after startup
 
 ## Quick Start
 
+No Docker — the backend runs directly (deployed to a plain EC2 instance in
+production; same `uvicorn` command locally), Postgres is a hosted Supabase
+project, and the frontend deploys to Vercel.
+
 ### Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
-- A [Supabase](https://supabase.com/) project (free tier works) for authentication
+- A [Supabase](https://supabase.com/) project (free tier works) — provides both Postgres and auth
+- Python 3.12, Node 18+
 
-### 1. Configure environment
+### 1. Database
 
-```bash
-# Clone and enter the project
-git clone <repo-url>
-cd real-time-warehouse-dashboard
+Apply `schema.sql` then `seed.sql` to your Supabase project (SQL Editor, or
+`psql "$DATABASE_URL" -f schema.sql -f seed.sql`) — 10 forklifts, 30 tasks,
+50 inventory items, 80 events, 10 alerts.
 
-# Copy and edit the backend env file
-cp .env.example .env
-# Fill in SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET (see below)
-```
-
-For the frontend, set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `frontend/.env.local` (copy from `frontend/.env.local.example`).
-
-### 2. Start all services
+### 2. Backend
 
 ```bash
-docker compose up --build
-```
-
-The first run builds images and seeds the database (10 forklifts, 30 tasks, 50 inventory items, 80 events, 10 alerts). Subsequent runs skip seeding automatically.
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API + Swagger | http://localhost:8000/docs |
-| PostgreSQL | localhost:5432 |
-
-### 3. Stop
-
-```bash
-docker compose down          # stop containers, keep volume
-docker compose down -v       # stop containers AND delete DB volume (full reset)
-```
-
-### Local development (without Docker)
-
-```bash
-# Backend
 cd backend
 pip install -r requirements.txt
-cp .env.example .env  # fill in vars
+cp .env.example .env   # fill in DATABASE_URL, SUPABASE_*, ANTHROPIC_API_KEY, etc. — see below
 uvicorn app.main:app --reload --port 8000
+```
 
-# Frontend (separate terminal)
+Swagger UI at http://localhost:8000/docs.
+
+### 3. Frontend
+
+```bash
 cd frontend
 npm install
 cp .env.local.example .env.local  # fill in vars
 npm run dev
 ```
 
+Runs at http://localhost:3000.
+
 ---
 
 ## Environment Variables
 
-All variables have safe defaults so `docker compose up --build` works for the simulator-only flow. Auth and integrations require real credentials.
-
-### Database (`db` service)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_DB` | `warehouse` | Database name |
-| `POSTGRES_USER` | `warehouse_user` | Postgres user |
-| `POSTGRES_PASSWORD` | `warehouse_pass` | Postgres password |
-| `POSTGRES_PORT` | `5432` | Host port mapped to Postgres |
+See `backend/.env.example` and `frontend/.env.local.example` for the full,
+copy-pasteable list with placeholder values. Summary:
 
 ### Backend (`backend/.env`)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `POSTGRES_HOST` | yes | Hostname of the Postgres container (use `db` in Docker Compose) |
-| `POSTGRES_DB` | yes | Database name |
-| `POSTGRES_USER` | yes | Postgres user |
-| `POSTGRES_PASSWORD` | yes | Postgres password |
+| `DATABASE_URL` | yes (or `POSTGRES_*` below) | Supabase Postgres connection string |
+| `POSTGRES_HOST`/`_PORT`/`_DB`/`_USER`/`_PASSWORD` | fallback | Used only when `DATABASE_URL` is unset (local dev against a non-Supabase Postgres) |
 | `SUPABASE_URL` | yes | Your Supabase project URL (`https://<ref>.supabase.co`) |
 | `SUPABASE_JWT_SECRET` | yes | JWT secret from Supabase dashboard → Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | for admin API | Service role key for user management |
 | `ANTHROPIC_API_KEY` | for AI planner | Claude API key |
 | `TELEGRAM_BOT_TOKEN` | for Telegram | Bot token from BotFather |
 | `TELEGRAM_USE_POLLING` | optional | Set `true` for local dev (vs webhook in prod) |
-| `GOOGLE_SHEET_ID` | for Sheets | Google Sheets document ID |
-| `GOOGLE_SHEET_NAME` | optional | Sheet tab name (default: `Sheet1`) |
-| `GOOGLE_OAUTH_JSON` | for Sheets | Service account JSON (base64-encoded or raw) |
+| `GOOGLE_SHEET_ID` / `GOOGLE_SHEET_NAME` / `GOOGLE_OAUTH_JSON` | for Sheets | Google Sheets task intake |
+| `GMAIL_CREDENTIALS_JSON` | for Gmail intake | OAuth credentials for the Gmail MCP order intake |
 | `CORS_ORIGINS` | optional | Comma-separated allowed origins (default: `http://localhost:3000`) |
-| `BACKEND_PORT` | optional | Host port for the backend (default: `8000`) |
+| `PHOENIX_COLLECTOR_ENDPOINT` / `PHOENIX_API_KEY` / `PHOENIX_PROJECT_NAME` | optional | Arize Phoenix Cloud tracing — disabled if unset |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -321,9 +289,8 @@ All variables have safe defaults so `docker compose up --build` works for the si
 | `NEXT_PUBLIC_API_URL` | yes | Backend URL visible to the browser (e.g. `http://localhost:8000`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Supabase anon/public key |
-| `FRONTEND_PORT` | optional | Host port for the frontend (default: `3000`) |
 
-> **Note:** `NEXT_PUBLIC_API_URL` is baked into the JavaScript bundle at build time. If you change it after building, run `docker compose build frontend` to rebuild the image. For production, set it to the public URL of your backend (e.g. `https://api.example.com`).
+> **Note:** `NEXT_PUBLIC_API_URL` is baked into the JavaScript bundle at build time — set it to your backend's public URL before building for production.
 
 ---
 
@@ -333,13 +300,14 @@ All variables have safe defaults so `docker compose up --build` works for the si
 .
 ├── schema.sql                    # PostgreSQL enums + 10 tables (idempotent)
 ├── seed.sql                      # Mock data: 10 forklifts, 30 tasks, 50 items, etc.
-├── docker-compose.yml
-├── .env.example
 │
 ├── backend/
-│   ├── Dockerfile                # Build context = project root; COPYs schema.sql + seed.sql
-│   ├── entrypoint.sh             # Wait for Postgres → init DB (if empty) → start uvicorn
+│   ├── .env.example
+│   ├── Dockerfile                # Standalone image build — not orchestrated by docker-compose
+│   ├── entrypoint.sh              # Wait for Postgres → init DB (if empty) → start uvicorn
 │   ├── requirements.txt
+│   ├── requirements-dev.txt      # + deepeval/pytest, for tests/eval/
+│   ├── tests/eval/                # DeepEval agent regression suite — see tests/eval/README.md
 │   └── app/
 │       ├── main.py               # FastAPI app, lifespan, middleware, router registration
 │       ├── database.py           # asyncpg connection pool + JSONB/UUID codecs
