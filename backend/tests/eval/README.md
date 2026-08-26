@@ -45,6 +45,19 @@ deepeval test run tests/eval/test_ai_workflow.py    # one file
 `deepeval test run` is a thin wrapper around `pytest` — plain `pytest tests/eval`
 also works.
 
+## CI (manual trigger only)
+
+`.github/workflows/agent-evals.yml` runs this suite on `workflow_dispatch`
+only — GitHub → Actions → "Agent evals (DeepEval)" → Run workflow, optionally
+overriding the `test_path` input (defaults to `tests/eval`, the whole suite).
+Not on `push`/`pull_request`: real API cost, ~90s+ runtime, and it reads
+whatever DB `DATABASE_URL` points at (the same Supabase instance
+`backend/.env` uses locally — reads only, no writes, but still live/shared
+data, so don't make it a required PR check).
+
+Needs two repo secrets set once (Settings → Secrets and variables → Actions):
+`ANTHROPIC_API_KEY` and `DATABASE_URL`.
+
 ## Notes
 
 - `test_gmail_extraction.py` fakes the MCP stdio transport (no real Gmail
