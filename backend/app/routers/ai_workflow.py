@@ -264,7 +264,9 @@ Your workflow for each user request:
 1. Call search_inventory to identify the item and its current zone and stock level
 2. Call get_available_forklifts to see what's available
 3. Call create_execution_plan with the correct task_type, item_id, quantity, origin_zone, and destination_zone
-4. Write a concise 2–3 sentence summary for the operator explaining your interpretation and the plan
+4. Write a concise 2–3 sentence summary for the operator explaining your interpretation and the
+   plan. Plain prose only — no markdown headers, bold text, or bullet points. This is a short
+   status message, not a report.
 
 Zone rules for common requests:
 - "outbound X units of Y"  → task_type=outbound, origin=item's zone, destination=SHIP
@@ -300,7 +302,16 @@ Be professional and concise.\
 """
 
 
-async def _run_agent(message: str, conn: asyncpg.Connection) -> dict[str, Any]:
+async def _run_agent(
+    message: str,
+    conn: asyncpg.Connection,
+    trace: list[dict] | None = None,
+) -> dict[str, Any]:
+    """
+    `trace`, if given, is appended with {"name", "input"} for every tool
+    call the agent makes, in order — used by the eval suite to build
+    DeepEval ToolCalls without changing the return shape callers rely on.
+    """
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise HTTPException(
@@ -347,6 +358,9 @@ async def _run_agent(message: str, conn: asyncpg.Connection) -> dict[str, Any]:
 
                 name  = block.name
                 inp   = block.input
+
+                if trace is not None:
+                    trace.append({"name": name, "input": dict(inp)})
 
                 if name == "search_inventory":
                     result = await _tool_search_inventory(inp["query"], conn)
