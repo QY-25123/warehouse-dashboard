@@ -36,6 +36,7 @@ from fastapi.responses import Response
 
 from app.auth import get_current_user, require_admin
 from app.dependencies import get_pool
+from app.observability import agent_span
 from app.ws_manager import manager as ws_manager
 from app.routers.ai_workflow import _run_agent as _run_planning_agent
 
@@ -238,13 +239,14 @@ async def _run_intent_agent(claude_messages: list[dict]) -> dict[str, Any]:
     import anthropic as _anthropic  # noqa: PLC0415
 
     client = _anthropic.AsyncAnthropic(api_key=api_key)
-    response = await client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
-        system=_INTENT_SYSTEM,
-        tools=[_INTENT_TOOL],
-        messages=claude_messages,
-    )
+    with agent_span("whatsapp.intent_agent"):
+        response = await client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            system=_INTENT_SYSTEM,
+            tools=[_INTENT_TOOL],
+            messages=claude_messages,
+        )
     intent, text = None, ""
     for block in response.content:
         if hasattr(block, "text"):

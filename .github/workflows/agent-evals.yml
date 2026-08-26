@@ -1,0 +1,37 @@
+name: Agent evals (DeepEval)
+
+# Manual only — not on push/pull_request. These tests call the real Claude
+# API (real cost) and read backend/tests/eval's live DB assumptions, so they
+# don't belong on every commit. Run this after changing a system prompt or
+# tool schema in ai_workflow.py, mcp_gmail_client.py, telegram_bot.py, or
+# whatsapp.py — see backend/tests/eval/README.md for what's covered.
+on:
+  workflow_dispatch:
+    inputs:
+      test_path:
+        description: "Path to run, relative to backend/ (e.g. tests/eval or tests/eval/test_ai_workflow.py)"
+        required: false
+        default: "tests/eval"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - run: deepeval test run "${{ github.event.inputs.test_path }}"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

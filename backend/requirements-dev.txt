@@ -1,0 +1,18 @@
+# Dev/test-only deps — not installed in the production Docker image.
+-r requirements.txt
+
+# requirements.txt pins pydantic==2.10.3, older than deepeval's stated
+# minimum (>=2.11.7) — pip resolves this by silently picking an older
+# deepeval release (3.4.6 as of writing) instead of erroring. It works
+# fine; just don't assume the latest deepeval API surface (e.g. use
+# LLMTestCaseParams, not the newer SingleTurnParams alias).
+deepeval>=1.5.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+
+# deepeval's built-in AnthropicModel (used as the GEval judge — see
+# tests/eval/conftest.py::claude_judge) hardcodes a `temperature=` kwarg
+# on messages.create(), which anthropic>=1.1.0 removed. requirements.txt's
+# unbounded `anthropic>=0.40.0` pin will happily resolve to 1.x, so pin an
+# upper bound here to keep the judge model working.
+anthropic<1.0.0

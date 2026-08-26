@@ -25,6 +25,8 @@ import anthropic
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from app.observability import agent_span
+
 logger = logging.getLogger(__name__)
 
 _SERVER_SCRIPT = str(Path(__file__).parent / "gmail_mcp_server.py")
@@ -174,73 +176,74 @@ async def extract_order_from_email(message_id: str) -> dict[str, Any]:
             order_data: dict | None = None
             email_data: dict | None = None
 
-            for _ in range(10):  # hard cap on tool rounds
-                response = await client.messages.create(
-                    model="claude-sonnet-4-6",
-                    max_tokens=1024,
-                    system=_EXTRACT_SYSTEM,
-                    tools=all_tools,
-                    messages=messages,
-                )
+            with agent_span("gmail.extract_order", **{"input.value": message_id}):
+                for _ in range(10):  # hard cap on tool rounds
+                    response = await client.messages.create(
+                        model="claude-sonnet-4-6",
+                        max_tokens=1024,
+                        system=_EXTRACT_SYSTEM,
+                        tools=all_tools,
+                        messages=messages,
+                    )
 
-                if response.stop_reason in ("end_turn", None):
-                    break
-                if response.stop_reason != "tool_use":
-                    break
+                    if response.stop_reason in ("end_turn", None):
+                        break
+                    if response.stop_reason != "tool_use":
+                        break
 
-                tool_results: list[dict[str, Any]] = []
+                    tool_results: list[dict[str, Any]] = []
 
-                for block in response.content:
-                    if block.type != "tool_use":
-                        continue
+                    for block in response.content:
+                        if block.type != "tool_use":
+                            continue
 
-                    if block.name == "confirm_order":
-                        # Inline tool — capture the structured output
-                        order_data = dict(block.input)
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": "Order recorded.",
-                        })
+                        if block.name == "confirm_order":
+                            # Inline tool — capture the structured output
+                            order_data = dict(block.input)
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": "Order recorded.",
+                            })
 
-                    elif block.name in mcp_tool_names:
-                        # MCP tool — delegate to the running server subprocess
-                        try:
-                            mcp_result = await session.call_tool(
-                                block.name, dict(block.input)
-                            )
-                            result_text = (
-                                mcp_result.content[0].text
-                                if mcp_result.content
-                                else "{}"
-                            )
-                        except Exception as exc:
-                            result_text = json.dumps({"error": str(exc)})
-
-                        # Capture the email body for storage
-                        if block.name == "get_email":
+                        elif block.name in mcp_tool_names:
+                            # MCP tool — delegate to the running server subprocess
                             try:
-                                email_data = json.loads(result_text)
-                            except Exception:
-                                pass
+                                mcp_result = await session.call_tool(
+                                    block.name, dict(block.input)
+                                )
+                                result_text = (
+                                    mcp_result.content[0].text
+                                    if mcp_result.content
+                                    else "{}"
+                                )
+                            except Exception as exc:
+                                result_text = json.dumps({"error": str(exc)})
 
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result_text,
-                        })
+                            # Capture the email body for storage
+                            if block.name == "get_email":
+                                try:
+                                    email_data = json.loads(result_text)
+                                except Exception:
+                                    pass
 
-                    else:
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": json.dumps({"error": f"Unknown tool: {block.name}"}),
-                        })
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": result_text,
+                            })
 
-                messages.append({"role": "assistant", "content": response.content})
-                messages.append({"role": "user", "content": tool_results})
+                        else:
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": json.dumps({"error": f"Unknown tool: {block.name}"}),
+                            })
 
-                if order_data is not None:
-                    break
+                    messages.append({"role": "assistant", "content": response.content})
+                    messages.append({"role": "user", "content": tool_results})
+
+                    if order_data is not None:
+                        break
 
     return {"order": order_data, "email": email_data}

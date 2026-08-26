@@ -1,0 +1,26 @@
+[
+  {
+    "input": "outbound 15 units of safety gloves",
+    "expected_tools": [
+      {"name": "search_inventory"},
+      {"name": "get_available_forklifts"},
+      {"name": "create_execution_plan"}
+    ]
+  },
+  {
+    "input": "inbound 25 units of hydraulic oil to zone A2",
+    "expected_tools": [
+      {"name": "search_inventory"},
+      {"name": "get_available_forklifts"},
+      {"name": "create_execution_plan"}
+    ]
+  },
+  {
+    "input": "move 10 units of wire rope from A3 to B2",
+    "expected_tools": [
+      {"name": "search_inventory"},
+      {"name": "get_available_forklifts"},
+      {"name": "create_execution_plan"}
+    ]
+  }
+]
