@@ -25,5 +25,9 @@ __pycache__/
 .venv/
 venv/
 
+# deepeval local telemetry/cache — created by running the eval suite
+.deepeval/
+.deepeval_telemetry.txt
+
 # macOS
 .DS_Store

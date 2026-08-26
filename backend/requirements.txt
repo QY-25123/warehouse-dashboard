@@ -13,3 +13,5 @@ gspread>=6.0.0
 google-auth-oauthlib>=1.0.0
 google-api-python-client>=2.100.0
 mcp>=1.0.0
+arize-phoenix-otel>=0.6.0
+openinference-instrumentation-anthropic>=0.1.4

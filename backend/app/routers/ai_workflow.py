@@ -7,6 +7,7 @@ forklift state, then generate an optimised multi-forklift execution plan.
 
 import asyncio
 import json
+import logging
 import math
 import os
 from typing import Any
@@ -17,6 +18,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth import get_current_user, require_admin
 from app.dependencies import get_pool
 from app.models import AIPlanRequest, AIExecuteRequest, UpdateCapacityRequest
+from app.observability import agent_span
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -268,7 +272,29 @@ Zone rules for common requests:
 - "move Y from Z1 to Z2"   → task_type=relocation if both are grid zones
 - "restock Y"              → task_type=replenishment, origin=STOR
 
-If stock is insufficient, acknowledge it and plan for the available quantity.
+Hard requirements — do not skip these:
+- You MUST call search_inventory at least once before calling create_execution_plan, even if
+  you believe you already know the item_id. Never invent or reuse an item_id that did not come
+  from a search_inventory result in this conversation.
+- You MUST call get_available_forklifts at least once before calling create_execution_plan.
+  Never assume forklift availability.
+- If search_inventory returns no result, or several equally plausible matches, do NOT guess.
+  Stop and ask the operator to clarify instead of calling create_execution_plan.
+- If get_available_forklifts returns an empty list, do NOT call create_execution_plan for that
+  request — report that no forklifts are available instead.
+- Only call create_execution_plan once you have real data from both tools above for this
+  specific request. Re-call search_inventory / get_available_forklifts again if the user's
+  request changes item or if earlier results might be stale.
+- Never call create_execution_plan more than once per user request unless the first call
+  returned ok=false and you are retrying with corrected inputs.
+
+If stock looks insufficient, still pass the operator's original requested quantity as the
+`quantity` argument to create_execution_plan — never pass the capped/available amount instead.
+The tool itself compares quantity against real stock and reports quantity_available and
+insufficient_stock; pre-capping the argument yourself hides that signal from the rest of the
+system. In your explanation to the operator, acknowledge the shortfall and describe the plan
+for the available amount, but do not fabricate a larger quantity_available than what
+search_inventory reported.
 If the item name is ambiguous, pick the closest match and note your assumption.
 Be professional and concise.\
 """
@@ -292,79 +318,80 @@ async def _run_agent(message: str, conn: asyncpg.Connection) -> dict[str, Any]:
     explanation = ""
     forklifts_cache: list[dict] | None = None
 
-    for _ in range(12):  # hard cap on tool rounds
-        response = await client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            system=_SYSTEM,
-            tools=_TOOLS,
-            messages=messages,
-        )
+    with agent_span("ai_workflow.plan_task", **{"input.value": message}):
+        for _ in range(12):  # hard cap on tool rounds
+            response = await client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                system=_SYSTEM,
+                tools=_TOOLS,
+                messages=messages,
+            )
 
-        # Capture any text from this turn
-        for block in response.content:
-            if hasattr(block, "text") and block.text:
-                explanation = block.text
+            # Capture any text from this turn
+            for block in response.content:
+                if hasattr(block, "text") and block.text:
+                    explanation = block.text
 
-        if response.stop_reason == "end_turn":
-            break
+            if response.stop_reason == "end_turn":
+                break
 
-        if response.stop_reason != "tool_use":
-            break
+            if response.stop_reason != "tool_use":
+                break
 
-        # Execute requested tools
-        tool_results: list[dict] = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
+            # Execute requested tools
+            tool_results: list[dict] = []
+            for block in response.content:
+                if block.type != "tool_use":
+                    continue
 
-            name  = block.name
-            inp   = block.input
+                name  = block.name
+                inp   = block.input
 
-            if name == "search_inventory":
-                result = await _tool_search_inventory(inp["query"], conn)
+                if name == "search_inventory":
+                    result = await _tool_search_inventory(inp["query"], conn)
 
-            elif name == "get_available_forklifts":
-                forklifts_cache = await _tool_get_forklifts(conn)
-                result = forklifts_cache
-
-            elif name == "create_execution_plan":
-                item_row = await conn.fetchrow(
-                    "SELECT quantity FROM inventory WHERE id=$1", inp["item_id"],
-                )
-                # For inbound/replenishment, goods come from external sources (DOCK/STOR)
-                # so current stock does not limit how much can be moved.
-                if inp["task_type"] in ("inbound", "replenishment"):
-                    available_qty = inp["quantity"]
-                else:
-                    available_qty = int(item_row["quantity"]) if item_row else 0
-
-                if forklifts_cache is None:
+                elif name == "get_available_forklifts":
                     forklifts_cache = await _tool_get_forklifts(conn)
+                    result = forklifts_cache
 
-                plan = _compute_plan(
-                    task_type=inp["task_type"],
-                    item_id=inp["item_id"],
-                    item_name=inp["item_name"],
-                    quantity=inp["quantity"],
-                    available_quantity=available_qty,
-                    origin_zone=inp["origin_zone"],
-                    destination_zone=inp["destination_zone"],
-                    forklifts=list(forklifts_cache),  # copy — _compute_plan mutates the list
-                )
-                result = plan
+                elif name == "create_execution_plan":
+                    item_row = await conn.fetchrow(
+                        "SELECT quantity FROM inventory WHERE id=$1", inp["item_id"],
+                    )
+                    # For inbound/replenishment, goods come from external sources (DOCK/STOR)
+                    # so current stock does not limit how much can be moved.
+                    if inp["task_type"] in ("inbound", "replenishment"):
+                        available_qty = inp["quantity"]
+                    else:
+                        available_qty = int(item_row["quantity"]) if item_row else 0
 
-            else:
-                result = {"error": f"Unknown tool: {name}"}
+                    if forklifts_cache is None:
+                        forklifts_cache = await _tool_get_forklifts(conn)
 
-            tool_results.append({
-                "type":        "tool_result",
-                "tool_use_id": block.id,
-                "content":     json.dumps(result, default=str),
-            })
+                    plan = _compute_plan(
+                        task_type=inp["task_type"],
+                        item_id=inp["item_id"],
+                        item_name=inp["item_name"],
+                        quantity=inp["quantity"],
+                        available_quantity=available_qty,
+                        origin_zone=inp["origin_zone"],
+                        destination_zone=inp["destination_zone"],
+                        forklifts=list(forklifts_cache),  # copy — _compute_plan mutates the list
+                    )
+                    result = plan
 
-        messages.append({"role": "assistant", "content": response.content})
-        messages.append({"role": "user",      "content": tool_results})
+                else:
+                    result = {"error": f"Unknown tool: {name}"}
+
+                tool_results.append({
+                    "type":        "tool_result",
+                    "tool_use_id": block.id,
+                    "content":     json.dumps(result, default=str),
+                })
+
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user",      "content": tool_results})
 
     return {"plan": plan, "explanation": explanation}
 

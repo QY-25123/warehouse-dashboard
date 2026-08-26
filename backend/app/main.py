@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.database import create_pool
+from app.observability import init_observability
 from app.ws_manager import manager as ws_manager
 from app import simulator
 from app.routers import forklifts, tasks, inventory, alerts, events
@@ -17,6 +18,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+
+init_observability()
 
 
 @asynccontextmanager
