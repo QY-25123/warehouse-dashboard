@@ -39,10 +39,14 @@ def init_observability() -> None:
     from phoenix.otel import register
     from openinference.instrumentation.anthropic import AnthropicInstrumentor
 
+    # Deliberately do NOT pass endpoint=/api_key= here — phoenix.otel reads
+    # PHOENIX_COLLECTOR_ENDPOINT / PHOENIX_API_KEY from the environment
+    # itself, and for an app.phoenix.arize.com host it uses that to build
+    # the correct Phoenix Cloud path (/s/<space>/v1/traces). Passing
+    # endpoint= explicitly bypasses that entirely and posts straight to the
+    # bare space URL, which 405s.
     tracer_provider = register(
         project_name=os.getenv("PHOENIX_PROJECT_NAME", "warehouse-dashboard"),
-        endpoint=endpoint,
-        api_key=os.getenv("PHOENIX_API_KEY", "").strip() or None,
         batch=True,
     )
     AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
